@@ -59,7 +59,7 @@
   "entities": [
     {
       "entity_type": 0,
-      "path": "data/1AGA.mmtf",
+      "path": "1AGA.mmtf",
       "transform": {
         "position": [
           0.0,
@@ -114,7 +114,7 @@
     },
     {
       "entity_type": 0,
-      "path": "data/1AGA.mmtf",
+      "path": "1AGA.mmtf",
       "transform": {
         "position": [
           20.0,

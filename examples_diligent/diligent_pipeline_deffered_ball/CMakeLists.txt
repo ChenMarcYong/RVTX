@@ -15,3 +15,12 @@ target_link_libraries(diligent_pipeline_deffered_ball
     PRIVATE
         rVTX::dil
 )
+
+
+add_dependency_folder(diligent_ball_Data
+    "${CMAKE_CURRENT_SOURCE_DIR}/data"          # source (ton dossier avec scene_2AGA.json)
+    "${CMAKE_BINARY_DIR}/bin/data"             # destination (à côté de l'exécutable)
+)
+
+# L'exécutable dépend de la copie des données
+add_dependencies(diligent_pipeline_deffered_ball diligent_ball_Data)

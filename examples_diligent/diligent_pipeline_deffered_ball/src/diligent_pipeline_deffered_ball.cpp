@@ -1,5 +1,4 @@
 #include "diligent_pipeline_deffered_ball.hpp"
-#include "data/data.cpp"
 
 
 #include <rvtx/dil/geometry/sphere_holder.hpp>
@@ -31,7 +30,6 @@
 #include <rvtx/molecule/molecule.hpp>
 #include <rvtx/system/camera.hpp>
 #include <rvtx/system/name.hpp>
-//#include <rvtx/system/scene.hpp>
 #include <rvtx/system/scene_descriptor.hpp>
 #include <rvtx/system/transform.hpp>
 #include <rvtx/molecule/color.hpp>
@@ -256,7 +254,7 @@ namespace rvtx::dil
         
         //m_Gbuffer = std::make_unique<rvtx::dil::GBufferPass>(m_pDevice, wd.width, wd.height);
         
-        std::vector<Molecule> molecules = loadAllMoleculesFromScene2("C:/M2 ISICG/Projet M2/rvtx/final/rVTX/examples_diligent/diligent_pipeline_deffered_ball/src/scene_2AGA.json", cd, *m_RvtxCamera);
+        std::vector<Molecule> molecules = loadAllMoleculesFromScene2("data/scene_2AGA.json", cd, *m_RvtxCamera);
         
         {
             auto nAlive = scene.registry.alive();
@@ -395,7 +393,7 @@ namespace rvtx::dil
     Diligent::DesiredApplicationSettings DiligentDeffered::GetDesiredApplicationSettings(bool IsInitialization)
     {
 
-        sceneDescriptor = rvtx::parse("C:/M2 ISICG/Projet M2/rvtx/final/rVTX/examples_diligent/diligent_pipeline_deffered_ball/src/scene_2AGA.json");
+        sceneDescriptor = rvtx::parse("data/scene_2AGA.json");
         wd = sceneDescriptor.windowDescriptor;
         rd = sceneDescriptor.rendererDescriptor;
 
