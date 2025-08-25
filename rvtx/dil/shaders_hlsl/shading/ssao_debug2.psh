@@ -98,7 +98,7 @@ float4 main(PSIn IN) : SV_Target
 
     // --- DEBUG (décommenter une seule section) ---
     //#define DBG_NOISE
-    //#define DBG_NORMAL
+    #define DBG_NORMAL
     //#define DBG_DEPTH
 #ifdef DBG_NOISE
     return float4(0.5f*n2.x + 0.5f, 0.5f*n2.y + 0.5f, 0, 1);
