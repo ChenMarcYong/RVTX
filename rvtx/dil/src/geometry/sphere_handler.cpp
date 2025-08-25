@@ -33,15 +33,15 @@ namespace rvtx::dil
         initializePSO();
 
         if(useGeom)
-        pipelineEntry = pipelineManager.create2("pipeline sphere", { "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.vsh",
+        pipelineEntry = pipelineManager.create2("pipeline sphere", { "shaders_hlsl/sphere/sphere.vsh",
             
 
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.gsh" ,
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
+            "shaders_hlsl/sphere/sphere.gsh" ,
+            "shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
 
         else
-            pipelineEntry = pipelineManager.create2("pipeline sphere", { "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphereNogs/sphere.vsh",
-        "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphereNogs/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
+            pipelineEntry = pipelineManager.create2("pipeline sphere", { "shaders_hlsl/sphereNogs/sphere.vsh",
+        "shaders_hlsl/sphereNogs/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
 
         BindBuffers();
     }
@@ -57,11 +57,11 @@ namespace rvtx::dil
     {
 
         initializePSO();
-        auto result = pipelineManager.create("pipeline sphere", { "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.vsh",
+        auto result = pipelineManager.create("pipeline sphere", { "shaders_hlsl/sphere/sphere.vsh",
 
 
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.gsh" ,
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
+            "shaders_hlsl/sphere/sphere.gsh" ,
+            "shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
 
 
         pipelineEntry = result.entry;

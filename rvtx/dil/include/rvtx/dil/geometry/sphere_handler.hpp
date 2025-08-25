@@ -141,7 +141,7 @@ namespace rvtx::dil
         PipelineData pipelineData;
 
       
-        bool useGeom = false;
+        bool useGeom = true;
 
     };
 

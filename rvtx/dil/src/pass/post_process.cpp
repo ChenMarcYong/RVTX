@@ -73,8 +73,8 @@ namespace rvtx::dil
 
 
 
-        m_PipelineEntry = m_Manager->create2("LinearizeDepth", { "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/shading/linearize_depth.psh",
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/full_screen.vsh"}, PSOStateCreateInfo, Vars, _countof(Vars));
+        m_PipelineEntry = m_Manager->create2("LinearizeDepth", { "shaders_hlsl/shading/linearize_depth.psh",
+            "shaders_hlsl/full_screen.vsh"}, PSOStateCreateInfo, Vars, _countof(Vars));
 
         if (useDebug)
         {
@@ -96,8 +96,8 @@ namespace rvtx::dil
                 {SHADER_TYPE_PIXEL, "CameraCB",       SHADER_RESOURCE_VARIABLE_TYPE_STATIC },
                 {SHADER_TYPE_PIXEL, "DebugCB",        SHADER_RESOURCE_VARIABLE_TYPE_STATIC },
             };
-            m_PipelineEntryDebug = m_Manager->create2("LinearizeDepthDebug", { "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/shading/linearize_depth_debug.psh",
-        "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/full_screen_debug.vsh" }, PSOStateCreateInfoDebug, VarsDebug, _countof(VarsDebug));
+            m_PipelineEntryDebug = m_Manager->create2("LinearizeDepthDebug", { "shaders_hlsl/shading/linearize_depth_debug.psh",
+        "shaders_hlsl/full_screen_debug.vsh" }, PSOStateCreateInfoDebug, VarsDebug, _countof(VarsDebug));
         
 
             if (m_PipelineEntryDebug && m_PipelineEntryDebug->PSO)
@@ -402,8 +402,8 @@ namespace rvtx::dil
         auto* entry = m_Manager->create2(
             "SSAO",
             {
-                "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/shading/ssao_debug2.psh",
-                "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/full_screen.vsh"
+                "shaders_hlsl/shading/ssao_debug2.psh",
+                "shaders_hlsl/full_screen.vsh"
             },
             PsoCI, Vars,
             _countof(Vars));
