@@ -8,4 +8,3 @@ cmake-*
 /cmake-build-debug/
 /cmake-build-release/
 /out/
-/rvtx/extern/DiligentEngine/
