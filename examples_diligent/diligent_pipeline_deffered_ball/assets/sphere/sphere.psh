@@ -1,0 +1,93 @@
+cbuffer SphereSettings : register(b0)
+{
+    float4x4 uMVMatrix;
+    float4x4 uProjMatrix;
+    float uRadiusAdd;
+    uint uIsPerspective;
+    float2 _padding;
+};
+
+struct PS_IN
+{
+    float4 Position : SV_POSITION;
+    float3 viewImpPos : TEXCOORD0;
+    float3 viewSpherePos : TEXCOORD1;
+    float3 sphereColor : TEXCOORD2;
+    float sphereRad : TEXCOORD3;
+    float dotViewSpherePos : TEXCOORD4;
+    nointerpolation uint id : TEXCOORD7; // id (uint)
+};
+
+uint2 EncodeNormalOctahedron(float3 n)
+{
+    n = normalize(n);
+
+    // projection octa
+    float denom = abs(n.x) + abs(n.y) + abs(n.z) + 1e-8;
+    float2 p = n.xy / denom;
+
+    // repli si z < 0 (version compatible GLSL)
+    if (n.z < 0.0f)
+    {
+        // signe composante par composante via step (renvoie 0 ou 1)
+        float2 s = step(0.0f, p) * 2.0f - 1.0f; // {-1,+1}^2
+        p = (1.0f - abs(p.yx)) * s;
+    }
+
+    // [-1,1] -> [0,1] puis en uint16
+    float2 enc01 = p * 0.5f + 0.5f;
+    uint2 enc16 = uint2(saturate(enc01) * 65535.0f + 0.5f);
+    return enc16;
+}
+
+struct PS_OUT
+{
+    uint4 GBuffer0 : SV_Target0; // z (linéaire, vue) packé en uint + normale encodée (2x uint16) + réserve
+    float4 GBuffer1 : SV_Target1; // couleur (RGBA16F)
+    uint GBuffer2 : SV_Target2; // ID
+};
+
+PS_OUT main(PS_IN psIn, out float depth : SV_Depth)
+{
+    PS_OUT o;
+
+    // Rayon depuis l'œil vers le fragment du quad en espace vue
+    float3 d = normalize(psIn.viewImpPos);
+
+    // Intersection rayon-sphère (en espace vue)
+    float a = dot(d, d); // = 1 normalement
+    float b = -dot(d, psIn.viewSpherePos);
+    float c = dot(psIn.viewSpherePos, psIn.viewSpherePos) - psIn.sphereRad * psIn.sphereRad;
+
+    float delta = b * b - a * c;
+    if (delta < 0.0f)
+        discard;
+
+    float t = (-b - sqrt(delta)) / a;
+    if (t < 0.0f)
+        discard;
+
+    // Point d'intersection en espace vue (origine caméra)
+    float3 hitView = d * t;
+
+    // Normale en espace vue
+    float3 normalV = normalize(hitView - psIn.viewSpherePos);
+    
+    float4 clip = mul(float4(hitView, 1.0f), uProjMatrix);
+    depth = (clip.z / clip.w) * 0.5f + 0.5f; 
+    
+    float depthV = -hitView.z;
+    // En UINT32 via bitcast (pas de conversion/scaling ici)
+    uint depthU = asuint(depthV);
+
+    uint2 encN = EncodeNormalOctahedron(normalV);
+    o.GBuffer0 = uint4(depthU, encN.x, encN.y, 0u);
+
+    // RT1 (RGBA16F) : couleur
+    o.GBuffer1 = float4(psIn.sphereColor, 1.0f);
+
+    // RT2 (R32_UINT) : ID
+    o.GBuffer2 = psIn.id;
+
+    return o;
+}
