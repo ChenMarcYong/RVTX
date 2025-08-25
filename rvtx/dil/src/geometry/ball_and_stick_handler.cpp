@@ -33,11 +33,11 @@ namespace rvtx::dil
         m_pDevice(device), m_pImmediateContext(context), m_pSwapChain(swapChain), m_pEngineFactory(engineFactory)
     {
         initializePSO();
-        pipelineSphereEntry = pipelineManager.create2("SphereGeometry", { "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.vsh",
+        pipelineSphereEntry = pipelineManager.create2("SphereGeometry", { "shaders_hlsl/sphere/sphere.vsh",
 
 
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.gsh" ,
-            "C:/M2 ISICG/Projet M2/rVTX3/rVTX/rvtx/dil/shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, VarsSphere, _countof(VarsSphere));
+            "shaders_hlsl/sphere/sphere.gsh" ,
+            "shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, VarsSphere, _countof(VarsSphere));
 
         //auto PSO_Cyl = PSOStateCreateInfo;
         //PSO_Cyl.PSODesc.Name = "Cylinder Impostor Pipeline";
