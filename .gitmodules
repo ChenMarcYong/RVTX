@@ -41,3 +41,6 @@
 [submodule "rvtx/extern/tinyexr"]
 	path = rvtx/extern/tinyexr
 	url = https://github.com/syoyo/tinyexr
+[submodule "rvtx/extern/diligentEngine"]
+	path = rvtx/extern/diligentEngine
+	url = https://github.com/DiligentGraphics/DiligentEngine.git
