@@ -1,0 +1,26 @@
+// linear_depth_from_gbuffer.psh
+Texture2D<uint4> gViewPosNormal : register(t0);
+
+struct PSIn
+{
+    float4 SVPos : SV_Position;
+};
+
+static float2 UnpackHalf2x16(uint v)
+{
+    uint2 u = uint2(v & 0xFFFFu, v >> 16);
+    return float2(f16tof32(u.x), f16tof32(u.y));
+}
+
+float main(PSIn IN) : SV_Target
+{
+    int2 pix = int2(IN.SVPos.xy);
+
+    uint4 U = gViewPosNormal.Load(int3(pix, 0));
+    float2 vp_xy = UnpackHalf2x16(U.x);
+    float2 tmp = UnpackHalf2x16(U.y);
+    float vz = tmp.x; // z en espace vue (négatif en GL)
+    float dview = -vz; // distance vue positive
+
+    return dview; // R32_FLOAT
+}

@@ -1,0 +1,47 @@
+struct PSIn
+{
+    float4 pos : SV_POSITION;
+    float2 uv : TEXCOORD0;
+};
+Texture2D<float> LinearDepthTex : register(t0); // 0=near, 1=far (déjà linéarisée)
+
+// Fenêtre sur la profondeur linéaire [0..1] -> (NearDepth, FarDepth)
+// Exemple: (0.0, 0.2) focalise sur les 20% proches
+cbuffer DebugCB : register(b1)
+{
+    float2 Window; // x = NearDepth, y = FarDepth
+    float Gamma; // >1 augmente le contraste (ex: 2.2)
+    uint Invert; // 0: near noir, 1: near blanc (option)
+};
+
+float4 main(PSIn i) : SV_TARGET
+{
+    uint w, h;
+    LinearDepthTex.GetDimensions(w, h);
+    uint2 pix = uint2(saturate(i.uv) * float2(w, h));
+    pix = min(pix, uint2(w - 1, h - 1));
+
+    float d = LinearDepthTex.Load(int3(pix, 0)); // 0..1 linéaire
+    // Fenêtrer puis normaliser dans [0..1]
+    float denom = max(Window.y - Window.x, 1e-6);
+    float v = saturate((d - Window.x) / denom);
+
+    // near -> noir (optionnellement inversable)
+    if (Invert != 0)
+        v = 1.0 - v;
+
+    // Gamma pour renforcer le contraste
+    float g = (Gamma > 0.0) ? Gamma : 1.0;
+    
+    float Gain = 2.0;
+    float k = 1.2; // 2–6 : plus grand = plus de contraste
+
+    
+    v = pow(v, g);
+    v = saturate(v * Gain);
+    //v = 1.0 - exp(-k * v);
+    
+    
+    
+    return float4(v, v, v, 1);
+}

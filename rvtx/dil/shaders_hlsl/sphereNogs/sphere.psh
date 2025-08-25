@@ -1,0 +1,80 @@
+// sphere_impostor_instanced.psh
+cbuffer SphereSettings : register(b0)
+{
+    float4x4 uMVMatrix;
+    float4x4 uProjMatrix;
+    float uRadiusAdd;
+    uint uIsPerspective;
+    float2 _pad;
+};
+
+struct PS_IN
+{
+    float4 pos : SV_Position;
+    float3 viewImpPos : TEXCOORD0;
+    float3 viewCenter : TEXCOORD1;
+    float3 color : TEXCOORD2;
+    float radius : TEXCOORD3;
+    float visible : TEXCOORD4;
+    uint id : TEXCOORD5;
+};
+
+uint2 EncodeNormalOcta16(float3 n)
+{
+    n = normalize(n);
+    float s = abs(n.x) + abs(n.y) + abs(n.z) + 1e-8;
+    float2 p = n.xy / s;
+    if (n.z < 0.0)
+    {
+        float2 t = (step(0.0, p) * 2.0 - 1.0);
+        p = (1.0 - abs(p.yx)) * t;
+    }
+    float2 enc01 = p * 0.5 + 0.5;
+    return uint2(saturate(enc01) * 65535.0 + 0.5);
+}
+
+struct PS_OUT
+{
+    uint4 GBuffer0 : SV_Target0; // depth(view) bitcast + normal enc
+    float4 GBuffer1 : SV_Target1; // albedo
+    uint GBuffer2 : SV_Target2; // id
+};
+
+PS_OUT main(PS_IN i, out float depth : SV_Depth)
+{
+    PS_OUT o;
+
+    if (i.visible < 0.5)
+        discard;
+
+    // Rayon depuis l'œil (origine) vers le point du quad (approx par interp)
+    float3 d = normalize(i.viewImpPos);
+
+    // Intersection rayon-sphère (en ESPACE VUE)
+    // Ray: r(t) = 0 + d*t ; Sphere: ||r(t) - C||^2 = R^2
+    float b = -dot(d, i.viewCenter);
+    float c = dot(i.viewCenter, i.viewCenter) - i.radius * i.radius;
+    float disc = b * b - c;
+    if (disc < 0.0)
+        discard;
+
+    float t = (-b - sqrt(disc)); // a=1
+    if (t < 0.0)
+        discard;
+
+    float3 hitV = d * t;
+    float3 nV = normalize(hitV - i.viewCenter);
+
+    // profondeur : projeter hitV
+    float4 clip = mul(float4(hitV, 1.0), uProjMatrix);
+    depth = clip.z / clip.w * 0.5 + 0.5;
+
+    float depthView = -hitV.z; // >0 en regardant -Z
+    uint depthU = asuint(depthView);
+    uint2 nOct = EncodeNormalOcta16(nV);
+
+    o.GBuffer0 = uint4(depthU, nOct.x, nOct.y, 0u);
+    o.GBuffer1 = float4(i.color, 1.0);
+    o.GBuffer2 = i.id;
+    return o;
+}

@@ -1,0 +1,43 @@
+[submodule "rvtx/extern/SDL"]
+	path = rvtx/extern/SDL
+	url = https://github.com/libsdl-org/SDL
+	branch = SDL2
+[submodule "rvtx/extern/imgui"]
+	path = rvtx/extern/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "rvtx/core/extern/chemfiles"]
+	path = rvtx/core/extern/chemfiles
+	url = https://github.com/chemfiles/chemfiles
+[submodule "rvtx/core/extern/glm"]
+	path = rvtx/core/extern/glm
+	url = https://github.com/g-truc/glm
+[submodule "rvtx/core/extern/nlohmann_json"]
+	path = rvtx/core/extern/nlohmann_json
+	url = https://github.com/nlohmann/json
+[submodule "rvtx/core/extern/entt"]
+	path = rvtx/core/extern/entt
+	url = https://github.com/skypjack/entt
+[submodule "rvtx/gl/extern/stb"]
+	path = rvtx/gl/extern/stb
+	url = https://github.com/nothings/stb
+[submodule "rvtx/core/extern/plf_nanotimer"]
+	path = rvtx/core/extern/plf_nanotimer
+	url = https://github.com/mattreecebentley/plf_nanotimer
+[submodule "bindings/python/extern/nanobind"]
+	path = bindings/python/extern/nanobind
+	url = https://github.com/wjakob/nanobind
+[submodule "rvtx/extern/SESDF"]
+	path = rvtx/extern/SESDF
+	url = https://gitlab.xlim.fr/rVTX-dev/SESDF.git
+[submodule "rvtx/core/extern/stb"]
+	path = rvtx/core/extern/stb
+	url = https://github.com/nothings/stb.git
+[submodule "rvtx/core/extern/fastgltf"]
+	path = rvtx/core/extern/fastgltf
+	url = https://github.com/spnda/fastgltf
+[submodule "rvtx/core/extern/thread-pool"]
+	path = rvtx/core/extern/thread-pool
+	url = https://github.com/bshoshany/thread-pool
+[submodule "rvtx/extern/tinyexr"]
+	path = rvtx/extern/tinyexr
+	url = https://github.com/syoyo/tinyexr

@@ -1,0 +1,11 @@
+/.vs/
+/out/
+CMakeSettings.json
+.idea
+cmake-*
+
+/build-msvc/
+/cmake-build-debug/
+/cmake-build-release/
+/out/
+/rvtx/extern/DiligentEngine/

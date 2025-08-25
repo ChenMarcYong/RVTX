@@ -1,0 +1,83 @@
+Texture2D<uint4> gViewPosNormal : register(t0); // packHalf2x16 lu en uint4
+Texture2D<float3> gNoise : register(t1); // bruit (xy, z=0)
+Texture2D<float> gLinearDepth : register(t2); // profondeur linéaire
+
+SamplerState gNoiseSampler : register(s0); // WRAP + POINT
+SamplerState gDepthSampler : register(s1); // CLAMP + POINT
+
+cbuffer SSAOParams : register(b0)
+{
+    float4x4 uProjMatrix;
+    int uAoIntensity;
+    int uKernelSize;
+    float uNoiseSize;
+    float _pad0;
+};
+
+cbuffer SSAOKernel : register(b1)
+{
+    float3 uAoKernel[512];
+};
+
+struct PSIn
+{
+    float4 SVPos : SV_Position;
+};
+
+static float2 UnpackHalf2x16(uint v)
+{
+    uint2 u = uint2(v & 0xFFFFu, v >> 16);
+    return float2(f16tof32(u.x), f16tof32(u.y));
+}
+
+static float SmoothStep(float a, float b, float x)
+{
+    float t = saturate((x - a) / (b - a));
+    return t * t * (3.0f - 2.0f * t);
+}
+
+float main(PSIn IN) : SV_Target
+{
+    const float BIAS = 0.025f;
+
+    int2 texPos = int2(IN.SVPos.xy);
+
+    // Unpack G-Buffer
+    uint4 vpnu = gViewPosNormal.Load(int3(texPos, 0));
+    float2 vp_xy = UnpackHalf2x16(vpnu.x);
+    float2 tmp = UnpackHalf2x16(vpnu.y);
+    float2 n_yz = UnpackHalf2x16(vpnu.z);
+
+    float3 viewPosition = float3(vp_xy, tmp.x);
+    float3 normal = float3(tmp.y, n_yz);
+
+    float radius = -viewPosition.z;
+
+    float2 noiseUV = IN.SVPos.xy / uNoiseSize;
+    float3 randomVec = normalize(gNoise.Sample(gNoiseSampler, noiseUV)); //  pas de .xyz
+
+    float3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+    float3 bitangent = cross(normal, tangent);
+    float3x3 TBN = float3x3(tangent, bitangent, normal);
+
+    float ao = 0.0f;
+    [loop]
+    for (int i = 0; i < uKernelSize; ++i)
+    {
+        float3 samplePos = mul(TBN, uAoKernel[i]) * radius + viewPosition;
+
+        float4 clip = mul(uProjMatrix, float4(samplePos, 1.0f));
+        float2 uv = clip.xy / clip.w;
+        uv = uv * 0.5f + 0.5f;
+
+        float sampleDepth = -gLinearDepth.Sample(gDepthSampler, uv); //  pas de .r
+
+        float rangeCheck = (sampleDepth == 0.0f) ? 0.0f
+                         : SmoothStep(0.0f, 1.0f, radius / abs(viewPosition.z - sampleDepth));
+
+        ao += (sampleDepth >= samplePos.z + BIAS ? 1.0f : 0.0f) * rangeCheck;
+    }
+
+    ao = 1.0f - (ao / float(max(1, uKernelSize))); //  cast explicite
+    return pow(ao, float(uAoIntensity)); // cast style HLSL/GLSL OK
+}

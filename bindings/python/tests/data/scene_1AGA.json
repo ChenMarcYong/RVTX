@@ -1,0 +1,83 @@
+{
+  "scene": {
+    "background": [
+      1.25,
+      1.0,
+      1.0,
+      0.0
+    ],
+    "backgroundLight": [
+      1.0,
+      1.0,
+      1.0,
+      3.0
+    ],
+    "bounces": 16,
+    "camera_transform": {
+      "position": [
+        0.0,
+        0.0,
+        -20.0
+      ],
+      "rotation": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "depthOfField": [
+      -1.0,
+      -1.0,
+      -1.0
+    ],
+    "entities": [
+      {
+        "file": "1AGA.mmtf",
+        "representations": [
+          {
+            "color_mode": 2,
+            "probe_radius": 1.4,
+            "custom_material": {
+              "base_color": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "emissive": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mediumWeight": -1.0,
+              "metalness": 0.0,
+              "roughness": 0.5,
+              "specular_ior": 1.5,
+              "transmission": 0.0,
+              "transmission_ior": 1.5
+            },
+            "type": 1
+          }
+        ],
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    ],
+    "height": 720,
+    "name": "1AGA",
+    "pixelWidth": 16,
+    "spp": 1024,
+    "width": 1280
+  }
+}

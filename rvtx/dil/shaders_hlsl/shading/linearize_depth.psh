@@ -1,0 +1,42 @@
+// linearize_depth.psh
+struct PSIn
+{
+    float4 pos : SV_POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+Texture2D<float> gDepth : register(t0);
+
+cbuffer CameraCB : register(b0)
+{
+    // x = zN*zF, y = zN - zF, z = zF, w = zN
+    float4 uClipInfo;
+    uint uIsPerspective;
+    float3 _pad;
+};
+
+float Linearize(float depth)
+{
+    if (uIsPerspective == 0)
+    {
+        // En D3D une proj ortho donne déjà une depth linéaire 0..1
+        return depth;
+    }
+
+    // view-space Z
+    float z_view = uClipInfo.x / (uClipInfo.y * depth + uClipInfo.z);
+    // remap -> [0..1]
+    return saturate((z_view - uClipInfo.w) / (uClipInfo.z - uClipInfo.w));
+}
+
+float4 main(PSIn i) : SV_TARGET
+{
+    uint w, h;
+    gDepth.GetDimensions(w, h);
+    uint2 pix = uint2(saturate(i.uv) * float2(w, h));
+    pix = min(pix, uint2(w - 1, h - 1));
+
+    float d = gDepth.Load(int3(pix, 0)); // depth non-linéaire [0..1]
+    float lin = Linearize(d);
+    return float4(lin, lin, lin, 1);
+}

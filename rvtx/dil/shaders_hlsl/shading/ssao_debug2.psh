@@ -1,0 +1,150 @@
+// ssao_debug2.psh — AO en niveaux de gris (G-Buffer RGBA32_UINT)
+
+Texture2D<uint4> gViewPosNormal : register(t0); // x=mask/unused, y/z=normal octa uint16, w=0
+Texture2D<float2> gNoise : register(t1); // RG16F -> float2
+Texture2D<float> gLinearDepth : register(t2); // profondeur linéaire (>0)
+
+SamplerState gNoiseSampler : register(s0); // WRAP + POINT
+SamplerState gDepthSampler : register(s1); // CLAMP + POINT
+
+cbuffer SSAOParams : register(b0)
+{
+    float4x4 uProjMatrix;
+    float4x4 uInvProjMatrix;
+
+    int uAoIntensity; // 1..3
+    int uKernelSize; // 1..512
+    float uNoiseSize; // 4, 8, 16...
+    float _pad0;
+
+    float2 RTSize;
+    float2 InvRTSize;
+};
+
+cbuffer SSAOKernel : register(b1)
+{
+    float3 uAoKernel[512];
+};
+
+struct PSIn
+{
+    float4 SVPos : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+
+static float3 DecodeOcta(float2 e01)
+{
+    float2 p = e01 * 2.0f - 1.0f;
+    float3 n = float3(p.x, p.y, 1.0f - abs(p.x) - abs(p.y));
+    if (n.z < 0.0f)
+        n.xy = (1.0f - abs(n.yx)) * (float2(p.x >= 0.0f, p.y >= 0.0f) * 2.0f - 1.0f);
+    return normalize(n);
+}
+
+static float SmoothStep(float a, float b, float x)
+{
+    float t = saturate((x - a) / (b - a));
+    return t * t * (3.0f - 2.0f * t);
+}
+
+float4 main(PSIn IN) : SV_Target
+{
+    const float BIAS = 0.025f;
+    const float BaseRadius = 0.35f;
+    const int K = min(max(uKernelSize, 1), 512);
+
+    // 1) UV au centre du pixel (IMPORTANT avec un sampler POINT)
+    float2 uv = (IN.SVPos.xy + 0.5f) * InvRTSize;
+    int2 texel = int2(IN.SVPos.xy);
+
+    // 2) Fetch GBuffer / depth
+    uint4 g = gViewPosNormal.Load(int3(texel, 0));
+    float centerDepth = gLinearDepth.Sample(gDepthSampler, uv); // > 0 si géométrie
+
+    // Early-out uniquement si profondeur invalide
+    if (centerDepth <= 0.0f)
+        return float4(1, 1, 1, 1);
+
+    // Normale (octa en uint16 dans g.y/g.z). Si vide -> fallback (0,0,1), PAS d’early-out.
+    float2 n01 = float2(g.y, g.z) / 65535.0f;
+    float3 normal = DecodeOcta(n01);
+    if (abs(normal.x) < 1e-6f && abs(normal.y) < 1e-6f && abs(normal.z) < 1e-6f)
+        normal = float3(0, 0, 1);
+
+    // 3) Reconstruct view-pos à partir de depth + proj
+    //    ndc sans flip ici (tu es déjà en chemin GL via Diligent)
+    float2 ndc = uv * 2.0f - 1.0f;
+
+    // fx, fy, cx, cy depuis la matrice proj (M * v, column-major)
+    float fx = uProjMatrix[0][0];
+    float fy = uProjMatrix[1][1];
+    float cx = uProjMatrix[2][0];
+    float cy = uProjMatrix[2][1];
+
+    float3 viewPos;
+    viewPos.z = -centerDepth;
+    viewPos.x = (ndc.x - cx) * centerDepth / max(fx, 1e-6f);
+    viewPos.y = (ndc.y - cy) * centerDepth / max(fy, 1e-6f);
+
+    // 4) Bruit / TBN
+    float safeNoiseSize = max(uNoiseSize, 1.0f);
+    float2 noiseUV = (uv * RTSize) / safeNoiseSize;
+    float2 n2 = gNoise.Sample(gNoiseSampler, noiseUV);
+    float3 randomVec = normalize(float3(n2 * 2.0f - 1.0f, 0.0f));
+
+    float3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+    float3 bitangent = cross(normal, tangent);
+    float3x3 TBN = float3x3(tangent, bitangent, normal);
+
+    // --- DEBUG (décommenter une seule section) ---
+    //#define DBG_NOISE
+    //#define DBG_NORMAL
+    //#define DBG_DEPTH
+#ifdef DBG_NOISE
+    return float4(0.5f*n2.x + 0.5f, 0.5f*n2.y + 0.5f, 0, 1);
+#endif
+#ifdef DBG_NORMAL
+    return float4(0.5f*normal + 0.5f, 1);
+#endif
+#ifdef DBG_DEPTH
+    float d = centerDepth;
+    return float4(d, d, d, 1);
+#endif
+
+    // 5) SSAO
+    float ao = 0.0f;
+    float radius = BaseRadius;
+
+    [loop]
+    for (int i = 0; i < K; ++i)
+    {
+        float3 samplePos = mul(TBN, uAoKernel[i]) * radius + viewPos;
+
+        float4 clip = mul(uProjMatrix, float4(samplePos, 1.0f));
+        float2 suv = clip.xy / max(clip.w, 1e-6f) * 0.5f + 0.5f;
+
+        if (suv.x < 0.0f || suv.x > 1.0f || suv.y < 0.0f || suv.y > 1.0f)
+            continue;
+
+        float sampleDepth = gLinearDepth.Sample(gDepthSampler, suv);
+        float samplePosDepth = -samplePos.z;
+
+        if (sampleDepth > 0.0f)
+        {
+            float occluded = (sampleDepth < samplePosDepth - BIAS) ? 1.0f : 0.0f;
+            float dist = abs(centerDepth - sampleDepth) + 1e-4f;
+            float rangeCheck = SmoothStep(0.0f, 1.0f, radius / dist);
+
+            // pondération directionnelle légère
+            float3 dir = samplePos - viewPos;
+            float ndot = saturate(dot(normalize(dir), normal));
+
+            ao += occluded * rangeCheck * ndot;
+        }
+    }
+
+    ao = 1.0f - (ao / float(K));
+    ao = saturate(pow(ao, max(0.001f, float(uAoIntensity))));
+
+    return float4(ao, ao, ao, 1.0f);
+}

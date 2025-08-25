@@ -1,0 +1,50 @@
+// ======================================================
+// HLSL (SM5+) — Pixel Shader
+// Entrées :
+//   - vVertexColor : couleur portée depuis le VS/GS
+//   - vVertexVis   : 0 => discard, sinon visible
+//   - vId          : ID pour un target UINT (picking), optionnel
+// Sorties :
+//   - SV_Target0   : couleur RGBA
+//   - SV_Target1   : uint ID (si MRT configuré avec R32_UINT)
+// ======================================================
+
+struct PSIn
+{
+    float4 pos : SV_Position;
+    float3 vVertexColor : TEXCOORD0;
+    uint vVertexVis : TEXCOORD1;
+    uint vId : TEXCOORD2;
+};
+
+// --- Variante A : avec MRT pour écrire l'ID de picking ---
+struct PSOut
+{
+    float4 color : SV_Target0;
+    uint id : SV_Target1; // nécessite un RT R32_UINT
+};
+
+[earlydepthstencil]
+PSOut main(PSIn i)
+{
+    // Masquage comme dans le GLSL: si visibilité == 0 -> discard
+    if (i.vVertexVis == 0u)
+    {
+        discard;
+    }
+
+    PSOut o;
+    o.color = float4(i.vVertexColor, 1.0f);
+    o.id = i.vId;
+    return o;
+}
+
+/* ------------------------------------------------------
+   Variante B (simple) : si tu n’utilises PAS de RT d’ID
+
+float4 main(PSIn i) : SV_Target
+{
+    if (i.vVertexVis == 0u) { discard; }
+    return float4(i.vVertexColor, 1.0f);
+}
+------------------------------------------------------- */
