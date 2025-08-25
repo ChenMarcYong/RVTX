@@ -124,18 +124,18 @@ namespace rvtx::dil
 
     void DiligentRenderer3::Resize(uint32_t width, uint32_t height)
     {
-        if (width == m_Width && height == m_Height)
-            return;
+        if (width == m_Width && height == m_Height) return;
 
         m_Width = width;
         m_Height = height;
 
-        // Resize du GBuffer
-        if (m_GBuffer)
-            m_GBuffer->Resize(m_Device, width, height);
+        // (si le swapchain n'est pas déjà resizé ailleurs)
+        // m_Swap->Resize(width, height);
 
-        // Resize de la RT finale
-        CreateTargets();
+        if (m_GBuffer)          m_GBuffer->Resize(m_Device, width, height);
+        if (m_postProcessPass)  m_postProcessPass->resize(m_Device, width, height);
+
+        CreateTargets(); // RT finale
     }
 
 
@@ -271,6 +271,11 @@ namespace rvtx::dil
 
     void DiligentRenderer3::CreateTargets()
     {
+
+        m_FinalSRV.Release();
+        m_FinalRTV.Release();
+        m_FinalTex.Release();
+
         // Render target finale (RGBA16_FLOAT par ex.)
         TextureDesc texDesc;
         texDesc.Name = "FinalRT";
@@ -370,7 +375,11 @@ namespace rvtx::dil
         psoCI.pVS = vs;
         psoCI.pPS = ps;
 
+        m_LightingSRB.Release();
+        m_LightingPSO.Release();
+
         m_Device->CreateGraphicsPipelineState(psoCI, &m_LightingPSO);
+        if (m_LightingPSO) OutputDebugStringA("WARN: m_LightingPSO not null before CreateGraphicsPipelineState\n");
         if (!m_LightingPSO) { OutputDebugStringA("[Lighting] CreateGraphicsPipelineState failed.\n"); return; }
 
         m_LightingPSO->CreateShaderResourceBinding(&m_LightingSRB, true);

@@ -63,8 +63,18 @@ namespace rvtx::dil
 
     void GBufferPass::Resize(IRenderDevice* pDevice, Uint32 width, Uint32 height)
     {
+        if (!pDevice || width == 0 || height == 0) return;
         if (width == m_Width && height == m_Height) return;
+
+        // Libérer toutes les ressources qui vont être recréées
+        m_PosNormSRV.Release();  m_PosNormRTV.Release();  m_PosNormTex.Release();
+        m_ColorSRV.Release();    m_ColorRTV.Release();    m_ColorTex.Release();
+        m_IdSRV.Release();       m_IdRTV.Release();       m_IdTex.Release();
+        m_DepthSRV.Release();    m_DepthDSV.Release();    m_DepthTex.Release();
+
         CreateBuffers(pDevice, width, height);
+
+        // Si un SRB/PSO ailleurs référence ces SRV, il faut les rebinder après le resize.
     }
 
     void GBufferPass::BeginPass(IDeviceContext* pCtx)

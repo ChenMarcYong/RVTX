@@ -159,7 +159,9 @@ namespace rvtx::dil
         if (pGS) PSOCreateInfo.pGS = pGS;
 
         AddVariablePSO(Vars, numVars, PSOCreateInfo, pPSO);
+        std::string msg = "WARN:" + name + " not null before CreateGraphicsPipelineState\n";
 
+        //OutputDebugStringA(msg.c_str());
         // Stocker
         PipelineEntry entry{ pPSO, SRB };
         m_pipelines[name] = entry;

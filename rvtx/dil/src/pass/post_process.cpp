@@ -137,7 +137,8 @@ namespace rvtx::dil
 
         }
 
-        
+        m_pCameraCB.Release();
+        m_pDebugCB.Release();
 
         if (m_PipelineEntry && m_PipelineEntry->PSO)
         {
@@ -224,8 +225,8 @@ namespace rvtx::dil
         map->uIsPerspective = (camera.projectionType == rvtx::Camera::Projection::Perspective ? 1u : 0u);
 
         // MAJ SRV de profondeur
-        m_PipelineEntry->SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gDepth")->Set(depthSRV);
-
+        auto* v = m_PipelineEntry->SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gDepth");
+        v->Set(depthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
         // Set pipeline et RT
         ctx->SetPipelineState(m_PipelineEntry->PSO);
         ctx->CommitShaderResources(m_PipelineEntry->SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
@@ -257,9 +258,9 @@ namespace rvtx::dil
             ctx->SetRenderTargets(1, RTs, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
 
-            m_PipelineEntryDebug->SRB
-                ->GetVariableByName(SHADER_TYPE_PIXEL, "LinearDepthTex")
-                ->Set(m_OutputSRV);
+            auto* v = m_PipelineEntryDebug->SRB
+                ->GetVariableByName(SHADER_TYPE_PIXEL, "LinearDepthTex");
+            v->Set(m_OutputSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
 
             MapHelper<DebugCBData> map(ctx, m_pDebugCB, MAP_WRITE, MAP_FLAG_DISCARD);
             *map = m_DebugCBData;
@@ -320,8 +321,8 @@ namespace rvtx::dil
 
     void LinearizeDepthPostProcessDiligent::resize(IRenderDevice* device, uint32_t w, uint32_t h)
     {
-
-        // Ici : recréer les ressources communes si besoin
+        if (!device || w == 0 || h == 0) return;
+        createTarget(device, w, h); // recrée m_Output + m_OutputRTV + m_OutputSRV
     }
 
     // ==========================================================
@@ -402,7 +403,7 @@ namespace rvtx::dil
         auto* entry = m_Manager->create2(
             "SSAO",
             {
-                "shaders_hlsl/shading/ssao_debug2.psh",
+                "shaders_hlsl/shading/ssao_debug2.psh",         //shaders_hlsl/shading/ssao_debug2.psh
                 "shaders_hlsl/full_screen.vsh"
             },
             PsoCI, Vars,
@@ -450,6 +451,10 @@ namespace rvtx::dil
     void SSAOPostProcessDiligent::createCBuffers(Diligent::IRenderDevice* pDevice)
     {
         using namespace Diligent;
+
+        m_CB.Release();
+        m_CBKernel.Release();
+        m_CBDebug.Release();
 
         // b0 : SSAOParams
         BufferDesc cbd{};
@@ -555,11 +560,11 @@ namespace rvtx::dil
         if (m_SRB)
         {
             if (m_ViewPosNormalSRV)
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_NoiseSRV)
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise")->Set(m_NoiseSRV);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise")->Set(m_NoiseSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_LinearDepthSRV)
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
 
 
             ctx->CommitShaderResources(m_SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
@@ -577,17 +582,18 @@ namespace rvtx::dil
 
 
         Diligent::IDeviceContext* ctx = getManager().m_pImmediateContex;
+        auto* rtv = getManager().m_pSwapChain->GetCurrentBackBufferRTV();
+        const auto bb = rtv->GetTexture()->GetDesc();
 
+        ctx->SetRenderTargets(1, &rtv, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        auto* pRTV = getManager().m_pSwapChain->GetCurrentBackBufferRTV();
-        ctx->SetRenderTargets(1, &pRTV, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-        // >> viewport = taille du backbuffer (et pas celle de m_Output)
-        const auto bbDesc = pRTV->GetTexture()->GetDesc();
-        Viewport vp{ 0, 0, float(bbDesc.Width), float(bbDesc.Height), 0, 1 };
-        ctx->SetViewports(1, &vp, bbDesc.Width, bbDesc.Height);
+        // viewport + scissor plein écran (IMPORTANT après un resize)
+        Viewport vp{ 0, 0, float(bb.Width), float(bb.Height), 0, 1 };
+        ctx->SetViewports(1, &vp, bb.Width, bb.Height);
+        Rect scissor{ 0, 0, (Int32)bb.Width, (Int32)bb.Height };
+        ctx->SetScissorRects(1, &scissor, bb.Width, bb.Height);
         IRenderDevice*  m_Device = getManager().m_pDevice;
-        resize(m_Device, bbDesc.Width, bbDesc.Height);
+        resize(m_Device, bb.Width, bb.Height);
 
          //MAJ des CB
         {
@@ -635,14 +641,14 @@ namespace rvtx::dil
         {
             if (m_ViewPosNormalSRV)
             {
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             }
                 
             if (m_LinearDepthSRV) // SRV de la passe LinearizeDepth !
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_NoiseSRV)
                 if (auto* v = m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise"))
-                    v->Set(m_NoiseSRV);
+                    v->Set(m_NoiseSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
 
             ctx->CommitShaderResources(m_SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         }
@@ -665,24 +671,10 @@ namespace rvtx::dil
 
     // ---------------- SSAOPostProcessDiligent ----------------
 
-    void SSAOPostProcessDiligent::resize(IRenderDevice* pDevice,
-        uint32_t w, uint32_t h)
+    void SSAOPostProcessDiligent::resize(IRenderDevice* device, uint32_t w, uint32_t h)
     {
-        if (!pDevice || w == 0 || h == 0)
-            return;
-
-        // Taille déjà à jour ?
-        if (m_Output && m_Output->GetDesc().Width == w &&
-            m_Output->GetDesc().Height == h)
-            return;
-
-        // Mémorise la nouvelle taille et recrée la cible AO
-        createTarget(pDevice, w, h);
-
-        // Pas besoin de recréer le SRB ni les PSO :
-        //  - les CBs sont statiques sur le PSO,
-        //  - le SRB ne référence pas la RT AO (uniquement des SRV d’entrée),
-        //  - RTSize/InvRTSize sont remis à jour dans render() à chaque frame.
+        if (!device || w == 0 || h == 0) return;
+        createTarget(device, w, h); // recrée m_Output + m_OutputRTV + m_OutputSRV
     }
 
 
@@ -799,8 +791,9 @@ namespace rvtx::dil
 
     void PostProcessPassDiligent::resize(IRenderDevice* device, uint32_t w, uint32_t h)
     {
-
-        // Ici : recréer les ressources communes si besoin
+        if (!device || w == 0 || h == 0) return;
+        m_linearizeDepth.resize(device, w, h);
+        m_ssao.resize(device, w, h);
     }
 
 }

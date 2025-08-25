@@ -79,5 +79,6 @@ float main(PSIn IN) : SV_Target
     }
 
     ao = 1.0f - (ao / float(max(1, uKernelSize))); //  cast explicite
-    return pow(ao, float(uAoIntensity)); // cast style HLSL/GLSL OK
+    //return pow(ao, float(uAoIntensity)); // cast style HLSL/GLSL OK
+    return float(1);
 }
