@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 project(rVTX C CXX)
-#fesfe
 
 # Force binaries location for all target of the project if rVTX is not a submodule
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
@@ -33,7 +32,7 @@ include(CMake/dependency_folder.cmake)
 
 option(RVTX_INCLUDE_CUDA              "Includes CUDA library to the rVTX project."       ON)
 option(RVTX_INCLUDE_OPTIX             "Includes OptiX library to the rVTX project."      ON)
-option(RVTX_INCLUDE_GL                "Includes OpenGL library to the rVTX project."     ON)
+option(RVTX_INCLUDE_GL                "Includes OpenGL library to the rVTX project."     OFF)
 option(RVTX_INCLUDE_UI                "Includes the UI library to the rVTX project."     ON)
 option(RVTX_INCLUDE_BINDINGS_PYTHON   "Includes the Python bindings to the rVTX project" OFF)
 option(RVTX_INCLUDE_EXAMPLES          "Includes the examples of the rVTX project."       OFF)
