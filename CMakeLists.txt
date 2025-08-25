@@ -32,7 +32,7 @@ include(CMake/dependency_folder.cmake)
 
 option(RVTX_INCLUDE_CUDA              "Includes CUDA library to the rVTX project."       ON)
 option(RVTX_INCLUDE_OPTIX             "Includes OptiX library to the rVTX project."      ON)
-option(RVTX_INCLUDE_GL                "Includes OpenGL library to the rVTX project."     OFF)
+option(RVTX_INCLUDE_GL                "Includes OpenGL library to the rVTX project."     ON)
 option(RVTX_INCLUDE_UI                "Includes the UI library to the rVTX project."     ON)
 option(RVTX_INCLUDE_BINDINGS_PYTHON   "Includes the Python bindings to the rVTX project" OFF)
 option(RVTX_INCLUDE_EXAMPLES          "Includes the examples of the rVTX project."       OFF)
