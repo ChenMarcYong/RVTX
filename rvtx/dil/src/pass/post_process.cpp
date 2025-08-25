@@ -481,7 +481,14 @@ namespace rvtx::dil
 
         // Binder les CBs statiquement sur le PSO (PIXEL)
         m_PSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "SSAOParams")->Set(m_CB);
-        m_PSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "SSAOKernel")->Set(m_CBKernel);
+        if (auto* var = m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SSAOKernel"))
+        {
+            std::string msg = "[KERNEL] works : \n";
+
+            OutputDebugStringA(msg.c_str());
+            var->Set(m_CBKernel);
+        }
+            
         //m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "DebugSize")->Set(m_CBDebug);
     }
 
