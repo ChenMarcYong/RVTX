@@ -365,6 +365,12 @@ namespace rvtx::dil
         if (m_CamForwarder)
             m_CamForwarder->update(m_Input);
 
+        if (m_Input.windowResized)
+        {
+            m_RvtxCamera->viewport = m_Input.windowSize;
+            m_Renderer->Resize(m_Input.windowSize.x, m_Input.windowSize.y);
+        }
+
 
     }
 

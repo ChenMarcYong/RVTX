@@ -158,7 +158,8 @@ namespace rvtx::dil
             m_postProcessPass->m_ssao.setViewPosNormalSRV(m_GBuffer->GetGeometrySRV());
             m_postProcessPass->m_ssao.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
 
-            m_postProcessPass->m_ssao.renderToBackBuffer(cam);
+            m_postProcessPass->m_ssao.render(cam);
+            m_postProcessPass->m_blur.render();
             return; // << ne fais rien après, sinon tu recouvres
         }
 

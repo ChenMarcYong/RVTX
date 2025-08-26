@@ -185,7 +185,91 @@ namespace rvtx::dil
         PipelineManager* m_Manager = nullptr;
     };
 
+    class BlurPostProcessDiligent : public Pass
+    {
+    public:
+        BlurPostProcessDiligent() = default;
+        BlurPostProcessDiligent(uint32_t width, uint32_t height, PipelineManager& manager);
 
+
+        BlurPostProcessDiligent(const BlurPostProcessDiligent&) = delete;
+        BlurPostProcessDiligent& operator=(const BlurPostProcessDiligent&) = delete;
+        BlurPostProcessDiligent(BlurPostProcessDiligent&&) noexcept = default;
+        BlurPostProcessDiligent& operator=(BlurPostProcessDiligent&&) noexcept = default;
+        ~BlurPostProcessDiligent() = default;
+
+
+        void resize(Diligent::IRenderDevice* device, uint32_t w, uint32_t h);
+
+
+        // Input: what to blur (SRV). You can re-set between frames.
+        void setInputSRV(Diligent::ITextureView* srv) { m_InputSRV = srv; }
+
+
+        // Optional: set output format (before first use / after resize)
+        void setOutputFormat(Diligent::TEXTURE_FORMAT fmt) { m_OutputFormat = fmt; }
+
+
+        // Blur parameters
+        void setSigma(float s) { m_Sigma = s; }
+        void setRadius(int r) { m_Radius = r; }
+        void setIterations(int n) { m_Iterations = (n < 1 ? 1 : n); }
+
+
+        // Execute two-pass blur. If iterations>1 it will ping-pong temp/output.
+        void render();
+
+
+        // Result SRV (blurred)
+        Diligent::ITextureView* getSRV() const { return m_OutputSRV; }
+
+
+        PipelineManager& getManager() { return *m_Manager; }
+
+
+    private:
+        void createTargets(Diligent::IRenderDevice* device, uint32_t w, uint32_t h);
+        void createPSOsIfNeeded(Diligent::IRenderDevice* device);
+        void updateCB(Diligent::IDeviceContext* ctx, Diligent::int2 dir);
+
+
+        // Sizes/format
+        uint32_t m_Width = 0, m_Height = 0;
+        Diligent::TEXTURE_FORMAT m_OutputFormat = Diligent::TEX_FORMAT_RGBA8_UNORM;
+
+
+        // Resources (owning)
+        Diligent::RefCntAutoPtr<Diligent::ITexture> m_Output;
+        Diligent::RefCntAutoPtr<Diligent::ITextureView> m_OutputRTV;
+        Diligent::RefCntAutoPtr<Diligent::ITextureView> m_OutputSRV;
+        Diligent::RefCntAutoPtr<Diligent::ITextureView> m_LinearDepthSRV;
+        Diligent::RefCntAutoPtr<Diligent::ITexture> m_Temp;
+        Diligent::RefCntAutoPtr<Diligent::ITextureView> m_TempRTV;
+        Diligent::RefCntAutoPtr<Diligent::ITextureView> m_TempSRV;
+
+
+        // Pipeline
+        Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_PSO;
+        Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_SRB;
+        Diligent::RefCntAutoPtr<Diligent::IBuffer> m_CBuffer; // BlurCB
+
+
+        // Input (non-owning)
+        Diligent::ITextureView* m_InputSRV = nullptr;
+
+
+        // Manager
+        PipelineManager* m_Manager = nullptr;
+
+
+        // Params
+
+        float m_Sigma = 4.0f;   // sert au calcul CPU si tu veux
+        int   m_Radius = 8;      // -> uBlurSize
+        int   m_Sharpness = 0;      // -> uBlurSharpness
+        int   m_Iterations = 1;
+
+    };
 
     class PostProcessPassDiligent : public Pass
     {
@@ -213,6 +297,7 @@ namespace rvtx::dil
         bool ok;
         LinearizeDepthPostProcessDiligent m_linearizeDepth;
         SSAOPostProcessDiligent m_ssao;
+        BlurPostProcessDiligent m_blur;
     protected:
         PipelineManager* m_PipelineManager = nullptr;
         bool m_enableAO = true;

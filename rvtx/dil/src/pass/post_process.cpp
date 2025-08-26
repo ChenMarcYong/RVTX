@@ -669,8 +669,6 @@ namespace rvtx::dil
     }
 
 
-    // ---------------- SSAOPostProcessDiligent ----------------
-
     void SSAOPostProcessDiligent::resize(IRenderDevice* device, uint32_t w, uint32_t h)
     {
         if (!device || w == 0 || h == 0) return;
@@ -769,6 +767,218 @@ namespace rvtx::dil
         m_NoiseSRV = m_Noise->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
 
     }
+    // ==========================================================
+    // BlurPostProcessDiligent
+    // ==========================================================
+
+    struct BlurParamsCB
+    {
+        int                uBlurSize;             // = m_Radius
+        int                uBlurSharpness;        // = m_Sharpness (ou 0)
+        Diligent::int2     uInvDirectionTexSize;  // (1,0) H / (0,1) V
+    };
+    BlurPostProcessDiligent::BlurPostProcessDiligent(uint32_t w, uint32_t h, PipelineManager& manager)
+        : Pass{ w, h }
+        , m_Manager{ &manager }
+    {
+        createTargets(manager.m_pDevice, w, h);
+        createPSOsIfNeeded(manager.m_pDevice);
+    }
+
+    void BlurPostProcessDiligent::createTargets(Diligent::IRenderDevice* device, uint32_t w, uint32_t h)
+    {
+        using namespace Diligent;
+
+        m_Width = w;
+        m_Height = h;
+
+        // --- Descripteur commun (équivalent à glTexImage2D(GL_R16F, ...)) ---
+        TextureDesc desc{};
+        desc.Type = RESOURCE_DIM_TEX_2D;
+        desc.Width = w;
+        desc.Height = h;
+        desc.MipLevels = 1;
+        desc.SampleCount = 1;
+        desc.Format = m_OutputFormat; // mets TEX_FORMAT_R16_FLOAT pour l'équivalent GL_R16F
+        desc.Usage = USAGE_DEFAULT;
+        desc.BindFlags = BIND_RENDER_TARGET | BIND_SHADER_RESOURCE;
+
+        // --- Output (m_Texture en GL) ---
+        m_Output.Release();
+        m_OutputRTV.Release();
+        m_OutputSRV.Release();
+
+        desc.Name = "Blur.Output";
+        device->CreateTexture(desc, nullptr, &m_Output);
+        m_OutputRTV = m_Output->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
+        m_OutputSRV = m_Output->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+
+        // --- Temp (m_TextureFirstPass en GL) ---
+        m_Temp.Release();
+        m_TempRTV.Release();
+        m_TempSRV.Release();
+
+        desc.Name = "Blur.Temp";
+        device->CreateTexture(desc, nullptr, &m_Temp);
+        m_TempRTV = m_Temp->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
+        m_TempSRV = m_Temp->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+
+        // --- Clear comme glClearTexImage(..., 1.0f) ---
+        if (Diligent::IDeviceContext* ctx = getManager().m_pImmediateContex)
+        {
+            const float one[4] = { 1.f, 1.f, 1.f, 1.f };
+            ctx->ClearRenderTarget(m_OutputRTV, one, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+            ctx->ClearRenderTarget(m_TempRTV, one, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        }
+    }
+
+
+
+
+    void BlurPostProcessDiligent::createPSOsIfNeeded(Diligent::IRenderDevice* device)
+    {
+        using namespace Diligent;
+
+        // Un seul PSO suffit : même pixel shader, seule la direction change via le cbuffer.
+        if (m_PSO)
+            return;
+
+        // --- Pipeline state commun ---
+        GraphicsPipelineStateCreateInfo PsoCI{};
+        auto& GP = PsoCI.GraphicsPipeline;
+        GP.NumRenderTargets = 1;
+        GP.RTVFormats[0] = m_OutputFormat;   // ex: TEX_FORMAT_R16_FLOAT
+        GP.DSVFormat = TEX_FORMAT_UNKNOWN;
+        GP.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        GP.RasterizerDesc.CullMode = CULL_MODE_NONE;
+        GP.DepthStencilDesc.DepthEnable = False;
+        GP.BlendDesc.RenderTargets[0].BlendEnable = False;
+
+        // --- Variables shader (HLSL) ---
+        ShaderResourceVariableDesc Vars[] = {
+            {SHADER_TYPE_PIXEL, "InputTexture",       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE}, // t0
+            {SHADER_TYPE_PIXEL, "LinearDepthTexture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE}, // t1
+            {SHADER_TYPE_PIXEL, "BlurParams",         SHADER_RESOURCE_VARIABLE_TYPE_STATIC }  // b0
+        };
+
+        PsoCI.PSODesc.ResourceLayout.NumVariables = static_cast<Uint32>(std::size(Vars));
+        PsoCI.PSODesc.ResourceLayout.Variables = Vars;
+
+        // NOTE: pas d'ImmutableSampler ici car le PSH utilise Load() (pas Sample).
+        // Si tu passes à Sample/SampleLevel, ajoute un sampler clamp en immutable.
+
+        // --- Création via PipelineManager ---
+        const char* VSPath = "shaders_hlsl/full_screen.vsh";
+        const char* PSPath = "shaders_hlsl/shading/bilateral_blur.psh";
+
+        auto* entry = m_Manager->create2(
+            "BilateralBlur",
+            { PSPath, VSPath },    // Pixel, Vertex
+            PsoCI, Vars, _countof(Vars)
+        );
+
+        m_PSO = entry->PSO;
+        m_PSO->CreateShaderResourceBinding(&m_SRB, true);
+
+        // --- Constant buffer (b0 : BlurParams) ---
+        struct BlurParamsCB 
+        {
+            int  uBlurSize;
+            int  uBlurSharpness;      // laisse 0 si inutilisé
+            int2 uInvDirectionTexSize;
+        };
+
+        BufferDesc cbd{};
+        cbd.Name = "Blur.ParamsCB";
+        cbd.BindFlags = BIND_UNIFORM_BUFFER;
+        cbd.Usage = USAGE_DYNAMIC;
+        cbd.CPUAccessFlags = CPU_ACCESS_WRITE;
+        cbd.Size = sizeof(BlurParamsCB);
+        device->CreateBuffer(cbd, nullptr, &m_CBuffer);
+
+        // Lier la variable statique (b0) sur le PSO
+        m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "BlurParams")->Set(m_CBuffer);
+    }
+
+
+
+    void BlurPostProcessDiligent::updateCB(Diligent::IDeviceContext* ctx,
+        Diligent::int2 dir)
+    {
+        Diligent::MapHelper<BlurParamsCB> map(ctx, m_CBuffer,
+            Diligent::MAP_WRITE,
+            Diligent::MAP_FLAG_DISCARD);
+        map->uBlurSize = m_Radius;
+        map->uBlurSharpness = m_Sharpness; // 0 si inutilisé
+        map->uInvDirectionTexSize = dir;
+    }
+
+    void BlurPostProcessDiligent::resize(IRenderDevice* device, uint32_t w, uint32_t h)
+    {
+        if (!device || w == 0 || h == 0) return;
+        createTargets(device, w, h);
+    }
+
+    void BlurPostProcessDiligent::render()
+    {
+        Diligent::IDeviceContext* ctx = getManager().m_pImmediateContex;
+        Diligent::RefCntAutoPtr<Diligent::ISwapChain> swap = getManager().m_pSwapChain;
+
+
+        using namespace Diligent;
+        if (!ctx || !m_InputSRV || !m_LinearDepthSRV) return;
+
+        createPSOsIfNeeded(m_Manager->m_pDevice);
+
+        const Uint32 W = m_Output->GetDesc().Width;
+        const Uint32 H = m_Output->GetDesc().Height;
+
+        auto drawPass = [&](int2 dir,
+            ITextureView* srcSRV,
+            ITextureView* dstRTV)
+            {
+                // 1) CB: direction + params
+                updateCB(ctx, dir);
+
+                // 2) Bind SRVs
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "InputTexture")
+                    ->Set(srcSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "LinearDepthTexture")
+                    ->Set(m_LinearDepthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+
+                // 3) Render target + viewport
+                ITextureView* rt[1] = { dstRTV };
+                ctx->SetRenderTargets(1, rt, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+                Viewport vp{ 0, 0, float(W), float(H), 0, 1 };
+                ctx->SetViewports(1, &vp, W, H);
+
+                // 4) Draw full-screen triangle
+                ctx->SetPipelineState(m_PSO);
+                ctx->CommitShaderResources(m_SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+                DrawAttribs da{ 3, DRAW_FLAG_VERIFY_ALL };
+                ctx->Draw(da);
+            };
+
+        // ---- Passe 1 : Horizontal (input -> Temp) ----
+        drawPass({ 1, 0 }, m_InputSRV, m_TempRTV);
+
+        // ---- Passe 2 : Vertical (Temp -> Output) ----
+        drawPass({ 0, 1 }, m_TempSRV, m_OutputRTV);
+
+        // ---- Itérations supplémentaires (ping-pong) ----
+        for (int it = 1; it < m_Iterations; ++it)
+        {
+            // H: Output -> Temp
+            drawPass({ 1, 0 }, m_OutputSRV, m_TempRTV);
+            // V: Temp -> Output
+            drawPass({ 0, 1 }, m_TempSRV, m_OutputRTV);
+        }
+    }
+
+
+
 
 
     // ==========================================================
@@ -784,6 +994,7 @@ namespace rvtx::dil
         : Pass(width, height),
         m_linearizeDepth(width, height, manager), // appelle le ctor de Pass
         m_ssao(width, height, manager),
+        m_blur(width, height, manager),
         m_PipelineManager(&manager)
     {
 
@@ -794,6 +1005,7 @@ namespace rvtx::dil
         if (!device || w == 0 || h == 0) return;
         m_linearizeDepth.resize(device, w, h);
         m_ssao.resize(device, w, h);
+        m_blur.resize(device, w, h);
     }
 
 }

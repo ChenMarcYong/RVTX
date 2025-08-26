@@ -1,0 +1,73 @@
+Texture2D<float> InputTexture : register(t0);
+Texture2D<float> LinearDepthTexture : register(t1);
+
+cbuffer BlurParams : register(b0)
+{
+	int uBlurSize; // rayon en texels
+	int uBlurSharpness; // conservé pour compat (non utilisé ici)
+	int2 uInvDirectionTexSize; // (1,0)=horizontal, (0,1)=vertical
+};
+
+struct PSIn
+{
+	float4 pos : SV_Position;
+	float2 uv : TEXCOORD0;
+};
+
+// helper global (HLSL)
+int2 ClampTexel(int2 p, uint W, uint H)
+{
+	p.x = clamp(p.x, 0, int(W) - 1);
+	p.y = clamp(p.y, 0, int(H) - 1);
+	return p;
+}
+
+float main(PSIn i) : SV_Target
+{
+	int2 texCoord = int2(i.pos.xy);
+
+	uint W, H;
+	InputTexture.GetDimensions(W, H);
+
+	int2 c = ClampTexel(texCoord, W, H);
+	float inputCenter = InputTexture.Load(int3(c, 0));
+	float depthCenter = LinearDepthTexture.Load(int3(c, 0));
+
+	float blurSigma = max(0.5f, uBlurSize * 0.5f);
+	float blurFalloff = 1.0f / (2.0f * blurSigma * blurSigma);
+
+	float sharpness = max(1.0f, 64.0f / max(depthCenter, 1e-6));
+
+	float res = inputCenter;
+	float weight = 1.0f;
+
+	int2 dir = uInvDirectionTexSize;
+
+    // +dir
+    [loop]
+	for (int t = 1; t <= uBlurSize; ++t)
+	{
+		int2 uv = ClampTexel(texCoord + t * dir, W, H);
+		float ic = InputTexture.Load(int3(uv, 0));
+		float dc = LinearDepthTexture.Load(int3(uv, 0));
+		float dd = (dc - depthCenter) * sharpness;
+		float w = exp2(-(t * t) * blurFalloff - dd * dd);
+		res += ic * w;
+		weight += w;
+	}
+
+    // -dir
+    [loop]
+	for (int t = 1; t <= uBlurSize; ++t)
+	{
+		int2 uv = ClampTexel(texCoord - t * dir, W, H);
+		float ic = InputTexture.Load(int3(uv, 0));
+		float dc = LinearDepthTexture.Load(int3(uv, 0));
+		float dd = (dc - depthCenter) * sharpness;
+		float w = exp2(-(t * t) * blurFalloff - dd * dd);
+		res += ic * w;
+		weight += w;
+	}
+
+	return res / max(weight, 1e-6);
+}
