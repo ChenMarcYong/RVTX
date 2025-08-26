@@ -978,7 +978,81 @@ namespace rvtx::dil
     }
 
 
+    // debug blur
 
+    void BlurPostProcessDiligent::renderDebug()
+    {
+        using namespace Diligent;
+
+        Diligent::IDeviceContext* ctx = getManager().m_pImmediateContex;
+
+        if (!ctx || !m_Manager || !m_Manager->m_pSwapChain || !m_OutputSRV)
+            return;
+
+        // 1) PSO de blit (création lazy)
+        if (!m_DebugPSO)
+        {
+            GraphicsPipelineStateCreateInfo PsoCI{};
+            auto& GP = PsoCI.GraphicsPipeline;
+            GP.NumRenderTargets = 1;
+            GP.RTVFormats[0] = m_Manager->m_pSwapChain->GetDesc().ColorBufferFormat;
+            GP.DSVFormat = TEX_FORMAT_UNKNOWN;
+            GP.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            GP.RasterizerDesc.CullMode = CULL_MODE_NONE;
+            GP.DepthStencilDesc.DepthEnable = False;
+            GP.BlendDesc.RenderTargets[0].BlendEnable = False;
+
+            // t0 : Src
+            ShaderResourceVariableDesc Vars[] = {
+                {SHADER_TYPE_PIXEL, "Src", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE}
+            };
+            PsoCI.PSODesc.ResourceLayout.NumVariables = _countof(Vars);
+            PsoCI.PSODesc.ResourceLayout.Variables = Vars;
+
+            // Sampler immutable (linear clamp) pour SampleLevel
+            SamplerDesc linClamp{};
+            linClamp.MinFilter = linClamp.MagFilter = linClamp.MipFilter = FILTER_TYPE_LINEAR;
+            linClamp.AddressU = linClamp.AddressV = TEXTURE_ADDRESS_CLAMP;
+            const ImmutableSamplerDesc Smps[] = {
+                {SHADER_TYPE_PIXEL, "Smp", linClamp}
+            };
+            PsoCI.PSODesc.ResourceLayout.NumImmutableSamplers = _countof(Smps);
+            PsoCI.PSODesc.ResourceLayout.ImmutableSamplers = Smps;
+
+            // Shaders : VS plein écran + PS de blit (grayscale)
+            auto* entry = m_Manager->create2(
+                "DebugBlitGrayscale",
+                { "shaders_hlsl/shading/bilateral_blur_debug.psh",
+                  "shaders_hlsl/full_screen.vsh" },
+                PsoCI, Vars, _countof(Vars));
+
+            m_DebugPSO = entry->PSO;
+            m_DebugPSO->CreateShaderResourceBinding(&m_DebugSRB, true);
+        }
+
+        // 2) Binder la source (résultat du blur)
+        m_DebugSRB->GetVariableByName(SHADER_TYPE_PIXEL, "Src")
+            ->Set(m_OutputSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+
+        // 3) Cible = backbuffer + viewport/scissor
+        ITextureView* rtv = m_Manager->m_pSwapChain->GetCurrentBackBufferRTV();
+        const auto bb = rtv->GetTexture()->GetDesc();
+
+        ctx->SetRenderTargets(1, &rtv, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+        Viewport vp{ 0, 0, float(bb.Width), float(bb.Height), 0, 1 };
+        ctx->SetViewports(1, &vp, bb.Width, bb.Height);
+
+        Rect sc{ 0, 0, (Int32)bb.Width, (Int32)bb.Height };
+        ctx->SetScissorRects(1, &sc, bb.Width, bb.Height);
+
+        // 4) Draw full-screen triangle
+        ctx->SetPipelineState(m_DebugPSO);
+        ctx->CommitShaderResources(m_DebugSRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+        DrawAttribs da{ 3, DRAW_FLAG_VERIFY_ALL };
+        ctx->Draw(da);
+    }
 
 
     // ==========================================================

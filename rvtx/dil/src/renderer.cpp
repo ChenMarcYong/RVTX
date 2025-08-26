@@ -159,7 +159,13 @@ namespace rvtx::dil
             m_postProcessPass->m_ssao.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
 
             m_postProcessPass->m_ssao.render(cam);
+
+            //m_postProcessPass->m_blur.setInputSRV(m_postProcessPass->m_ssao.getTexture());
+            //m_postProcessPass->m_blur.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
+
+
             m_postProcessPass->m_blur.render();
+            m_postProcessPass->m_blur.renderDebug();
             return; // << ne fais rien après, sinon tu recouvres
         }
 

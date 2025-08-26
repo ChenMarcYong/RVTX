@@ -34,7 +34,6 @@ namespace rvtx::dil
     class PipelineEntry;
 
 
-
     class LinearizeDepthPostProcessDiligent : public Pass
     {
         public:
@@ -204,7 +203,7 @@ namespace rvtx::dil
 
         // Input: what to blur (SRV). You can re-set between frames.
         void setInputSRV(Diligent::ITextureView* srv) { m_InputSRV = srv; }
-
+        void setLinearDepthSRV(Diligent::ITextureView* srv) { m_LinearDepthSRV = srv; }
 
         // Optional: set output format (before first use / after resize)
         void setOutputFormat(Diligent::TEXTURE_FORMAT fmt) { m_OutputFormat = fmt; }
@@ -218,7 +217,7 @@ namespace rvtx::dil
 
         // Execute two-pass blur. If iterations>1 it will ping-pong temp/output.
         void render();
-
+        void renderDebug();
 
         // Result SRV (blurred)
         Diligent::ITextureView* getSRV() const { return m_OutputSRV; }
@@ -231,8 +230,6 @@ namespace rvtx::dil
         void createTargets(Diligent::IRenderDevice* device, uint32_t w, uint32_t h);
         void createPSOsIfNeeded(Diligent::IRenderDevice* device);
         void updateCB(Diligent::IDeviceContext* ctx, Diligent::int2 dir);
-
-
         // Sizes/format
         uint32_t m_Width = 0, m_Height = 0;
         Diligent::TEXTURE_FORMAT m_OutputFormat = Diligent::TEX_FORMAT_RGBA8_UNORM;
@@ -252,6 +249,9 @@ namespace rvtx::dil
         Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_PSO;
         Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_SRB;
         Diligent::RefCntAutoPtr<Diligent::IBuffer> m_CBuffer; // BlurCB
+
+        Diligent::RefCntAutoPtr<Diligent::IPipelineState>         m_DebugPSO;
+        Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_DebugSRB;
 
 
         // Input (non-owning)
