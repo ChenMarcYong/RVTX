@@ -1,4 +1,3 @@
-// shaders_hlsl/post/debug_blit_grayscale.psh
 Texture2D<float> Src : register(t0);
 SamplerState Smp : register(s0);
 

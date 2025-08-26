@@ -155,17 +155,22 @@ namespace rvtx::dil
         if (m_postProcessPass) {
             m_postProcessPass->m_linearizeDepth.Execute(m_Ctx, cam, m_GBuffer->GetDepthSRV());
 
+
+            //m_postProcessPass->m_blur.debugBlitSRV(m_postProcessPass->m_linearizeDepth.getSRV());
+
             m_postProcessPass->m_ssao.setViewPosNormalSRV(m_GBuffer->GetGeometrySRV());
             m_postProcessPass->m_ssao.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
 
-            m_postProcessPass->m_ssao.render(cam);
+            m_postProcessPass->m_ssao.renderToBackBuffer(cam);
+
+            //m_postProcessPass->m_blur.debugBlitSRV(m_postProcessPass->m_ssao.getTexture());
 
             //m_postProcessPass->m_blur.setInputSRV(m_postProcessPass->m_ssao.getTexture());
             //m_postProcessPass->m_blur.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
 
 
-            m_postProcessPass->m_blur.render();
-            m_postProcessPass->m_blur.renderDebug();
+            //m_postProcessPass->m_blur.render();
+            //m_postProcessPass->m_blur.renderDebug();
             return; // << ne fais rien après, sinon tu recouvres
         }
 

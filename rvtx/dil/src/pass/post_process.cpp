@@ -121,7 +121,7 @@ namespace rvtx::dil
                     getManager().m_pDevice->CreateBuffer(bd, nullptr, &m_pDebugCB);
 
                     // Ex: fenêtre sur les 20% proches + contraste fort
-                    //MapHelper<DebugCBData> map(getManager().m_pImmediateContex, m_pDebugCB, MAP_WRITE, MAP_FLAG_DISCARD);
+                    MapHelper<DebugCBData> map(getManager().m_pImmediateContex, m_pDebugCB, MAP_WRITE, MAP_FLAG_DISCARD);
                     //map->Window[0] = 0.0f;   // NearDepth
                     //map->Window[1] = 0.03f;   // FarDepth   élargis la fenêtre
                     //map->Gamma = 0.6f;   // <1 = éclaircit, plus lisible
@@ -485,12 +485,13 @@ namespace rvtx::dil
 
 
         // Binder les CBs statiquement sur le PSO (PIXEL)
-        m_PSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "SSAOParams")->Set(m_CB);
+        if (auto* var = m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SSAOParams"))
+        {
+            var->Set(m_CB);
+        }
+        //m_PSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "SSAOParams")->Set(m_CB);
         if (auto* var = m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SSAOKernel"))
         {
-            std::string msg = "[KERNEL] works : \n";
-
-            OutputDebugStringA(msg.c_str());
             var->Set(m_CBKernel);
         }
             
@@ -560,9 +561,9 @@ namespace rvtx::dil
         if (m_SRB)
         {
             if (m_ViewPosNormalSRV)
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+                //m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_NoiseSRV)
-                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise")->Set(m_NoiseSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+                //m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise")->Set(m_NoiseSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_LinearDepthSRV)
                 m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
 
@@ -1023,7 +1024,7 @@ namespace rvtx::dil
             auto* entry = m_Manager->create2(
                 "DebugBlitGrayscale",
                 { "shaders_hlsl/shading/bilateral_blur_debug.psh",
-                  "shaders_hlsl/full_screen.vsh" },
+                  "shaders_hlsl/full_screen_id.vsh" },
                 PsoCI, Vars, _countof(Vars));
 
             m_DebugPSO = entry->PSO;
@@ -1054,6 +1055,74 @@ namespace rvtx::dil
         ctx->Draw(da);
     }
 
+
+    void BlurPostProcessDiligent::debugBlitSRV(Diligent::ITextureView* srcSRV)
+    {
+        using namespace Diligent;
+        if (!m_Manager || !srcSRV) return;
+
+        Diligent::IDeviceContext* ctx = m_Manager->m_pImmediateContex;
+
+        // Crée le PSO de blit une fois (lazy)
+        if (!m_DebugBlitPSO)
+        {
+            GraphicsPipelineStateCreateInfo PsoCI{};
+            auto& GP = PsoCI.GraphicsPipeline;
+            GP.NumRenderTargets = 1;
+            GP.RTVFormats[0] = m_Manager->m_pSwapChain->GetDesc().ColorBufferFormat;
+            GP.DSVFormat = TEX_FORMAT_UNKNOWN;
+            GP.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            GP.RasterizerDesc.CullMode = CULL_MODE_NONE;
+            GP.DepthStencilDesc.DepthEnable = False;
+            GP.BlendDesc.RenderTargets[0].BlendEnable = False;
+
+            ShaderResourceVariableDesc Vars[] = {
+                {SHADER_TYPE_PIXEL, "Src", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE}
+            };
+            PsoCI.PSODesc.ResourceLayout.NumVariables = _countof(Vars);
+            PsoCI.PSODesc.ResourceLayout.Variables = Vars;
+
+            // Sampler immutable (linear clamp)
+            SamplerDesc linClamp{};
+            linClamp.MinFilter = linClamp.MagFilter = linClamp.MipFilter = FILTER_TYPE_LINEAR;
+            linClamp.AddressU = linClamp.AddressV = TEXTURE_ADDRESS_CLAMP;
+            const ImmutableSamplerDesc Smps[] = {
+                {SHADER_TYPE_PIXEL, "Smp", linClamp}
+            };
+            PsoCI.PSODesc.ResourceLayout.NumImmutableSamplers = _countof(Smps);
+            PsoCI.PSODesc.ResourceLayout.ImmutableSamplers = Smps;
+
+            auto* entry = m_Manager->create2(
+                "DebugBlitGrayscale",
+                { "shaders_hlsl/shading/bilateral_blur_debug.psh",
+                  "shaders_hlsl/full_screen_id.vsh" },
+                PsoCI, Vars, _countof(Vars));
+
+            m_DebugBlitPSO = entry->PSO;
+            m_DebugBlitPSO->CreateShaderResourceBinding(&m_DebugBlitSRB, true);
+        }
+
+        // Bind la source
+        m_DebugBlitSRB->GetVariableByName(SHADER_TYPE_PIXEL, "Src")
+            ->Set(srcSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+
+        // Cible = backbuffer
+        ITextureView* rtv = m_Manager->m_pSwapChain->GetCurrentBackBufferRTV();
+        const auto bb = rtv->GetTexture()->GetDesc();
+        ctx->SetRenderTargets(1, &rtv, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+        // Viewport/scissor plein écran
+        Viewport vp{ 0,0,float(bb.Width),float(bb.Height),0,1 };
+        ctx->SetViewports(1, &vp, bb.Width, bb.Height);
+        Rect sc{ 0,0,(Int32)bb.Width,(Int32)bb.Height };
+        ctx->SetScissorRects(1, &sc, bb.Width, bb.Height);
+
+        // Draw
+        ctx->SetPipelineState(m_DebugBlitPSO);
+        ctx->CommitShaderResources(m_DebugBlitSRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        DrawAttribs da{ 3, DRAW_FLAG_VERIFY_ALL };
+        ctx->Draw(da);
+    }
 
     // ==========================================================
     // PostProcessPassDiligent

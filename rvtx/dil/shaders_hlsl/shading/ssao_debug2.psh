@@ -47,6 +47,8 @@ static float SmoothStep(float a, float b, float x)
     return t * t * (3.0f - 2.0f * t);
 }
 
+
+
 float4 main(PSIn IN) : SV_Target
 {
     const float BIAS = 0.025f;
@@ -98,8 +100,8 @@ float4 main(PSIn IN) : SV_Target
 
     // --- DEBUG (décommenter une seule section) ---
     //#define DBG_NOISE
-    #define DBG_NORMAL
-    //#define DBG_DEPTH
+    //#define DBG_NORMAL
+    #define DBG_DEPTH
 #ifdef DBG_NOISE
     return float4(0.5f*n2.x + 0.5f, 0.5f*n2.y + 0.5f, 0, 1);
 #endif
@@ -108,9 +110,8 @@ float4 main(PSIn IN) : SV_Target
 #endif
 #ifdef DBG_DEPTH
     float d = centerDepth;
-    return float4(d, d, d, 1);
+    return float4(d*100, d*100, d*100, 1);
 #endif
-
     // 5) SSAO
     float ao = 0.0f;
     float radius = BaseRadius;

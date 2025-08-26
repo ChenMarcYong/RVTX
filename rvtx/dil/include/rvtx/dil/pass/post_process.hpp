@@ -207,7 +207,7 @@ namespace rvtx::dil
 
         // Optional: set output format (before first use / after resize)
         void setOutputFormat(Diligent::TEXTURE_FORMAT fmt) { m_OutputFormat = fmt; }
-
+        void debugBlitSRV(Diligent::ITextureView* srcSRV);
 
         // Blur parameters
         void setSigma(float s) { m_Sigma = s; }
@@ -252,6 +252,9 @@ namespace rvtx::dil
 
         Diligent::RefCntAutoPtr<Diligent::IPipelineState>         m_DebugPSO;
         Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_DebugSRB;
+
+        Diligent::RefCntAutoPtr<Diligent::IPipelineState>         m_DebugBlitPSO;
+        Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_DebugBlitSRB;
 
 
         // Input (non-owning)
