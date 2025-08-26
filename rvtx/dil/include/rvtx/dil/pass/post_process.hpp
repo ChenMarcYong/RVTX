@@ -173,7 +173,7 @@ namespace rvtx::dil
         Diligent::RefCntAutoPtr<Diligent::IBuffer> m_CBDebug;
         // Réglages SSAO
         uint32_t               m_KernelSize = 32;
-        uint32_t               m_NoiseTextureSize = 32;
+        uint32_t               m_NoiseTextureSize = 4;
         float                  m_AOIntensity = 1.8f;
         std::vector<glm::vec3> m_AOKernel;
 

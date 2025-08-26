@@ -51,9 +51,10 @@ static float SmoothStep(float a, float b, float x)
 
 float4 main(PSIn IN) : SV_Target
 {
-    const float BIAS = 0.025f;
-    const float BaseRadius = 0.35f;
+    const float BIAS = 0.02f;
+    const float BaseRadius = 0.5f;
     const int K = min(max(uKernelSize, 1), 512);
+
 
     // 1) UV au centre du pixel (IMPORTANT avec un sampler POINT)
     float2 uv = (IN.SVPos.xy + 0.5f) * InvRTSize;
@@ -63,9 +64,28 @@ float4 main(PSIn IN) : SV_Target
     uint4 g = gViewPosNormal.Load(int3(texel, 0));
     float centerDepth = gLinearDepth.Sample(gDepthSampler, uv); // > 0 si géométrie
 
+    #define SHOW_AO_RAW
+    
+    // 3) Masque fond si pas de géométrie (si tu as un masque dans g.x, utilise-le)
+    bool hasGeom = (g.y | g.z) != 0u; // normales packées -> 0 si pas de géo
+    if (!hasGeom)
+    {
+#ifdef SHOW_AO_RAW       // affichage debug (occlusion brute)
+    return float4(0,0,0,1);
+#else                    // texture d’AO pour la composition (1 = aucune occlusion)
+        return float4(1, 1, 1, 1);
+#endif
+    }
+    
     // Early-out uniquement si profondeur invalide
     if (centerDepth <= 0.0f)
-        return float4(1, 1, 1, 1);
+    {
+    #ifdef SHOW_AO_RAW
+        return float4(0,0,0,1);
+    #else
+            return float4(1, 1, 1, 1);
+    #endif
+    }
 
     // Normale (octa en uint16 dans g.y/g.z). Si vide -> fallback (0,0,1), PAS d’early-out.
     float2 n01 = float2(g.y, g.z) / 65535.0f;
@@ -100,8 +120,8 @@ float4 main(PSIn IN) : SV_Target
 
     // --- DEBUG (décommenter une seule section) ---
     //#define DBG_NOISE
-    //#define DBG_NORMAL
-    #define DBG_DEPTH
+    #define DBG_NORMAL
+    //#define DBG_DEPTH
 #ifdef DBG_NOISE
     return float4(0.5f*n2.x + 0.5f, 0.5f*n2.y + 0.5f, 0, 1);
 #endif
@@ -113,9 +133,11 @@ float4 main(PSIn IN) : SV_Target
     return float4(d*100, d*100, d*100, 1);
 #endif
     // 5) SSAO
-    float ao = 0.0f;
-    float radius = BaseRadius;
-
+    
+    
+    float ao = 0.0f;  //50.0f
+    float radius = BaseRadius * centerDepth / max(fx, 1e-6f);
+    radius = clamp(radius, 0.02f, 0.6f);
     [loop]
     for (int i = 0; i < K; ++i)
     {
@@ -143,9 +165,15 @@ float4 main(PSIn IN) : SV_Target
             ao += occluded * rangeCheck * ndot;
         }
     }
-
+    
+    float ao_raw = ao / float(K);
+    return float4(ao_raw, ao_raw, ao_raw, 1);
+    
+    
     ao = 1.0f - (ao / float(K));
     ao = saturate(pow(ao, max(0.001f, float(uAoIntensity))));
+    
 
+    
     return float4(ao, ao, ao, 1.0f);
 }
