@@ -93,7 +93,7 @@ float4 main(VSOut i) : SV_TARGET
 
 namespace rvtx::dil
 {
-    DiligentRenderer3::DiligentRenderer3(IRenderDevice* dev,
+    DiligentRenderer::DiligentRenderer(IRenderDevice* dev,
         IDeviceContext* ctx,
         ISwapChain* swap,
         rvtx::dil::PipelineManager& pipeline,
@@ -109,11 +109,8 @@ namespace rvtx::dil
 
         m_GBuffer = std::make_unique<GBufferPass>(m_Device, m_Width, m_Height);
         m_postProcessPass = std::make_unique<PostProcessPassDiligent>( m_Width, m_Height, *m_Pipeline);
-        
-        //auto post = std::make_unique<rvtx::dil::PostProcessPassDiligent>(
-        //    m_Width, m_Height, *m_Pipeline   // <—
-        //);
-        
+       
+
         CreateLightingPipeline();
         // Création de la RT finale (où on va blitter/postprocess)
         CreateTargets();
@@ -122,7 +119,7 @@ namespace rvtx::dil
         CreatePostPresentPipeline();
     }
 
-    void DiligentRenderer3::Resize(uint32_t width, uint32_t height)
+    void DiligentRenderer::Resize(uint32_t width, uint32_t height)
     {
         if (width == m_Width && height == m_Height) return;
 
@@ -139,7 +136,7 @@ namespace rvtx::dil
     }
 
 
-    void DiligentRenderer3::Render(const rvtx::Camera& cam,
+    void DiligentRenderer::Render(const rvtx::Camera& cam,
         const rvtx::Scene& scene,
         const std::function<void()>& updateUI)
     {
@@ -156,30 +153,15 @@ namespace rvtx::dil
             m_postProcessPass->m_linearizeDepth.Execute(m_Ctx, cam, m_GBuffer->GetDepthSRV());
 
 
-            //m_postProcessPass->m_blur.debugBlitSRV(m_postProcessPass->m_linearizeDepth.getSRV());
 
             m_postProcessPass->m_ssao.setViewPosNormalSRV(m_GBuffer->GetGeometrySRV());
             m_postProcessPass->m_ssao.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
 
             m_postProcessPass->m_ssao.renderToBackBuffer(cam);
 
-            //m_postProcessPass->m_blur.debugBlitSRV(m_postProcessPass->m_ssao.getTexture());
-
-            //m_postProcessPass->m_blur.setInputSRV(m_postProcessPass->m_ssao.getTexture());
-            //m_postProcessPass->m_blur.setLinearDepthSRV(m_postProcessPass->m_linearizeDepth.getSRV());
-
-
-            //m_postProcessPass->m_blur.render();
-            //m_postProcessPass->m_blur.renderDebug();
-            return; // << ne fais rien après, sinon tu recouvres
+            return;
         }
 
-
-
-        //if (m_postProcessPass)
-        //{
-        //    m_postProcessPass->m_linearizeDepth.Execute(m_Ctx, cam, m_GBuffer->GetDepthSRV());
-        //}
 
 
         // 2) Composition minimale : afficher la RT couleur du GBuffer
@@ -243,45 +225,11 @@ namespace rvtx::dil
 
         // 3) UI éventuelle...
 
-        // 4) Présentation
-        //m_Swap->Present();
-    }
-
-
-
-    void DiligentRenderer3::Render2(const rvtx::Camera& cam,
-        const rvtx::Scene& scene,
-        const std::function<void()>& updateUI)
-    {
-        // Variante : bypass postprocess, dessiner directement la géométrie sur le swapchain
-
-        auto* backRTV = m_Swap->GetCurrentBackBufferRTV();
-        auto* backDSV = m_Swap->GetDepthBufferDSV();
-
-        const float clearCol[] = { m_ClearColor.x, m_ClearColor.y, m_ClearColor.z, m_ClearColor.w };
-        m_Ctx->ClearRenderTarget(backRTV, clearCol, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        m_Ctx->ClearDepthStencil(backDSV, CLEAR_DEPTH_FLAG, 1.0f, 0,
-            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-        m_Ctx->SetRenderTargets(1, &backRTV, backDSV,
-            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-        if (m_Geometry)
-        {
-            m_Geometry->render_context(cam, scene, m_Ctx);
-        }
-
-        if(m_postProcessPass)
-        {
-            m_postProcessPass->m_linearizeDepth.Execute(m_Ctx, cam, m_GBuffer->GetDepthSRV());
-        }
-
-        m_Swap->Present();
     }
 
     // ===================== PRIVES =====================
 
-    void DiligentRenderer3::CreateTargets()
+    void DiligentRenderer::CreateTargets()
     {
 
         m_FinalSRV.Release();
@@ -303,7 +251,7 @@ namespace rvtx::dil
         m_FinalSRV = m_FinalTex->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
     }
 
-    void DiligentRenderer3::CreatePostPresentPipeline()
+    void DiligentRenderer::CreatePostPresentPipeline()
     {
         // PSO minimal fullscreen quad pour copier depuis SRV -> RTV
         // À compléter avec tes shaders (fullscreen VS + copy PS)
@@ -311,7 +259,7 @@ namespace rvtx::dil
     }
 
 
-    void DiligentRenderer3::CreateLightingPipeline()
+    void DiligentRenderer::CreateLightingPipeline()
     {
         using namespace Diligent;
 
@@ -405,7 +353,7 @@ namespace rvtx::dil
 
 
 
-    void DiligentRenderer3::DrawFullscreenFromSRV(ITextureView* srv)
+    void DiligentRenderer::DrawFullscreenFromSRV(ITextureView* srv)
     {
         if (!srv || !m_PostPSO)
             return;

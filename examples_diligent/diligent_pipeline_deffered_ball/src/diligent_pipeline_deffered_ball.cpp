@@ -24,7 +24,7 @@
 //rvtx
 
 #include <entt/entity/registry.hpp>
-#include <fmt/chrono.h> // Used to handle 'std::tm' in fmt::format
+#include <fmt/chrono.h>
 #include <rvtx/core/logger.hpp>
 #include <rvtx/core/time.hpp>
 #include <rvtx/molecule/molecule.hpp>
@@ -42,11 +42,6 @@
 #include <unordered_map>
 #include <cstdint>
 
-#include <Windows.h>
-#include <filesystem>
-
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 
@@ -54,7 +49,6 @@ using namespace Diligent;
 
 namespace Diligent
 {
-    // Cette fonction doit exister et créer ton sample
     SampleBase* CreateSample()
     {
         return new rvtx::dil::DiligentDeffered();
@@ -76,7 +70,7 @@ namespace rvtx::dil
 #endif
 
         std::error_code ec;
-        std::filesystem::create_directories(m_SnapshotDir, ec); // ok si déjà existant
+        std::filesystem::create_directories(m_SnapshotDir, ec);
     }
 
 
@@ -131,18 +125,15 @@ namespace rvtx::dil
         }
         m_pImmediateContext->UnmapTextureSubresource(pStaging, 0, 0);
 
-        // Nom daté
         SYSTEMTIME st{}; GetLocalTime(&st);
         char fname[128];
         sprintf_s(fname, "snapshot_%04d-%02d-%02d_%02d-%02d-%02d.png",
             st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 
-        // Chemin final : .../bin/snapshots/snapshot_*.png
         std::filesystem::path outPath = m_SnapshotDir / fname;
 
-        // Écriture PNG (stb_image_write)
         stbi_flip_vertically_on_write(1);
-        const std::string outUtf8 = outPath.string(); // ok si ASCII; pour noms non ASCII, convertir en UTF-8 proprement
+        const std::string outUtf8 = outPath.string(); 
         stbi_write_png(outUtf8.c_str(), w, h, comp, pixels.data(), w * comp);
     }
 
@@ -161,7 +152,7 @@ namespace rvtx::dil
     }
 
 
-    std::vector<Molecule> DiligentDeffered::loadAllMoleculesFromScene2(
+    std::vector<Molecule> DiligentDeffered::loadAllMoleculesFromScene(
         const std::filesystem::path& sceneJsonPath,
         rvtx::CameraDescriptor& cd,
         rvtx::Camera& camera)
@@ -183,30 +174,21 @@ namespace rvtx::dil
                 std::filesystem::path absPath = baseDir / e.path;
                 std::error_code ec;
                 absPath = std::filesystem::weakly_canonical(absPath, ec);
-                bool ok = std::filesystem::exists(absPath);
-
-                char dbg[512];
-                sprintf_s(dbg,
-                    "[LOAD] entity %zu type=%d path='%s' exists=%d\n",
-                    i, int(e.type), absPath.string().c_str(), ok ? 1 : 0);
-                OutputDebugStringA(dbg);
 
                 try
                 {
-                    // IMPORTANT: passer le chemin ABSOLU ici
                     Molecule m = rvtx::load(absPath);
                     molecules.push_back(m);
 
                     auto& molecule = entity.emplace<rvtx::Molecule>(m);
                     molecule.aabb.attachTransform(&transform);
 
-                    auto sphereHolder = rvtx::dil::SphereHolder2::getMolecule(m_pDevice, molecule);
-                    entity.emplace<rvtx::dil::SphereHolder2>(std::move(sphereHolder));
+                    auto sphereHolder = rvtx::dil::SphereHolder::getMolecule(m_pDevice, molecule);
+                    entity.emplace<rvtx::dil::SphereHolder>(std::move(sphereHolder));
 
                     if (cd.targetEntity == i)
                         camera.target = rvtx::Camera::Target(molecule.getAabb());
 
-                    OutputDebugStringA("[LOAD] added SphereHolder2\n");
                 }
                 catch (const std::exception& ex)
                 {
@@ -226,16 +208,14 @@ namespace rvtx::dil
 
     void DiligentDeffered::Initialize(const Diligent::SampleInitInfo& InitInfo)
     {
-        // Initialisation de la base
         SampleBase::Initialize(InitInfo);
 
         InitSnapshotDir();
 
         SetupViewPort();
-        // Setup caméra et matrices
 
 
-        glm::uvec2                 _viewport = rd.useWindowViewport ? wd.viewport : rd.viewport;
+        glm::uvec2 _viewport = rd.useWindowViewport ? wd.viewport : rd.viewport;
 
         rvtx::CameraDescriptor& cd = sceneDescriptor.cameraDescriptor;
         entt::handle             cameraEntity = scene.createEntity("Main Camera");
@@ -252,48 +232,18 @@ namespace rvtx::dil
         m_InputAdapter = std::make_unique<DiligentInputAdapter>(ic, m_pSwapChain);
 
         
-        //m_Gbuffer = std::make_unique<rvtx::dil::GBufferPass>(m_pDevice, wd.width, wd.height);
         
-        std::vector<Molecule> molecules = loadAllMoleculesFromScene2("data/scene_2AGA.json", cd, *m_RvtxCamera);
-        
-        {
-            auto nAlive = scene.registry.alive();
-            auto nHolders = scene.registry.view<rvtx::dil::SphereHolder2>().size();
-            auto nTH = scene.registry.view<rvtx::Transform, rvtx::dil::SphereHolder2>().size_hint();
-
-            char buf[256];
-            sprintf_s(buf, "[SCENE] alive=%zu  holders=%zu  TH=%zu/n",
-                static_cast<size_t>(nAlive),
-                static_cast<size_t>(nHolders),
-                static_cast<size_t>(nTH));
-            OutputDebugStringA(buf);
-        }
-
-
-
-
+        std::vector<Molecule> molecules = loadAllMoleculesFromScene("data/scene_2AGA.json", cd, *m_RvtxCamera);
         pipeline = std::make_unique<PipelineManager>(m_pDevice, m_pEngineFactory);
 
         const auto& sc = m_pSwapChain->GetDesc();
 
 
-        m_Renderer = std::make_unique<rvtx::dil::DiligentRenderer3>(
+        m_Renderer = std::make_unique<rvtx::dil::DiligentRenderer>(
             m_pDevice, m_pImmediateContext, m_pSwapChain, *pipeline,
             sc.Width, sc.Height
         );
 
-
-
-        //auto geomSphere = std::make_unique<rvtx::dil::SphereHandler>(
-        //    *pipeline,                       // PipelineManager
-        //    m_pDevice, m_pImmediateContext, m_pSwapChain, m_pEngineFactory
-        //);
-
-
-        //auto geomBall = std::make_unique<rvtx::dil::BallAndStickHandler>(
-        //    *pipeline,                       // PipelineManager
-        //    m_pDevice, m_pImmediateContext, m_pSwapChain, m_pEngineFactory
-        //);
 
         auto geometryForwarder = std::make_unique<rvtx::dil::GeometryForwarder>();
 
@@ -312,11 +262,6 @@ namespace rvtx::dil
 
         m_Renderer->setGeometry(std::move(geometryForwarder));
 
-        char buf2[256];
-        sprintf_s(buf2, "[PIPELINE] size=%zu/n",
-            static_cast<size_t>(pipeline->m_pipelines.size()));
-
-        OutputDebugStringA(buf2);
     
     }
 
@@ -342,26 +287,22 @@ namespace rvtx::dil
     {
         SampleBase::Update(CurrTime, ElapsedTime, DoUpdateUI);
 
-        // Caméra Diligent (si tu l’utilises pour d’autres passes)
         m_Camera.Update(GetInputController(), static_cast<float>(ElapsedTime));
         m_ViewMatrix = m_Camera.GetViewMatrix();
         m_ProjMatrix = m_Camera.GetProjMatrix();
 
         if (!m_RvtxCamera) return;
 
-        // Garde l’aspect à jour (optionnel : tu peux le faire seulement au resize)
         const auto& sc = m_pSwapChain->GetDesc();
         m_RvtxCamera->viewport = { sc.Width, sc.Height };
 
-        // ---- INPUT UNIFIÉ ----
-        // Remplit m_Input (un seul état d’input pour tout rvtx)
 
         m_InputAdapter->Poll(static_cast<float>(ElapsedTime), m_Input);
 
         if (m_Input.isKeyDown(rvtx::Key::F7))
             TakeScreenshot();
 
-        // Le contrôleur caméra rvtx consomme m_Input
+
         if (m_CamForwarder)
             m_CamForwarder->update(m_Input);
 
@@ -381,13 +322,8 @@ namespace rvtx::dil
 
         if (!m_RvtxCamera || !m_Renderer) return;
 
-        // Exemple : petite lambda si tu veux dessiner une UI (facultatif)
-        auto drawUI = []() { /* ImGui via DiligentTools si tu l’as branché */ };
 
-        auto view = scene.registry.view<rvtx::Transform, rvtx::dil::SphereHolder2>();
-        char buf[128];
-        sprintf_s(buf, "[RENDER] spheres to draw = %zu/n", (size_t)view.size_hint());
-        OutputDebugStringA(buf);
+        auto drawUI = []() {};
 
 
         m_Renderer->Render(*m_RvtxCamera, scene, drawUI);

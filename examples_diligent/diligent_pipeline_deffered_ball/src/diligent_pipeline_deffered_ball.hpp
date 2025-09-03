@@ -61,11 +61,7 @@ namespace rvtx::dil
 
         virtual Diligent::DesiredApplicationSettings GetDesiredApplicationSettings(bool IsInitialization) override final;
 
-        void extractExtention(const std::filesystem::path& path);
         void SetupViewPort();
-        void loadMolecules();
-
-        void BuildRvtxInput(float dt);
 
         void SetRvtxCamera(rvtx::Camera& cam) { m_RvtxCamera = &cam; }
 
@@ -74,17 +70,13 @@ namespace rvtx::dil
         void InitSnapshotDir();
 
         std::vector<Molecule> loadAllMoleculesFromScene(const std::filesystem::path& sceneJsonPath, rvtx::CameraDescriptor& cd, rvtx::Camera& camera);
-        std::vector<Molecule> loadAllMoleculesFromScene2(const std::filesystem::path& sceneJsonPath, rvtx::CameraDescriptor& cd, rvtx::Camera& camera);
 
         PipelineManager::PipelineEntry* pipelineEntry;
 
         rvtx::Scene scene{};
-        const entt::handle entity;
-        std::vector<Molecule> listMolecules;
 
         std::vector<Sphere> moleculeData;
 
-        //std::unique_ptr<Camera&> camera;
         rvtx::Camera* m_RvtxCamera = nullptr;
         rvtx::ControllerForwarder forwarder{};
 
@@ -101,31 +93,21 @@ namespace rvtx::dil
 
         std::filesystem::path m_SnapshotDir;
 
-        std::unique_ptr<rvtx::dil::DiligentRenderer3> m_Renderer;
-        std::unique_ptr<rvtx::dil::GBufferPass> m_Gbuffer;
-
-
-        
+        std::unique_ptr<rvtx::dil::DiligentRenderer> m_Renderer;
 
     private:
-
-    private:
-        // Gestion des sphères
-
-        
 
         // Buffers
 
-        Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pSphereSettingsCB;
-        Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pSpheresBuffer;
-        Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresBufferView;
         Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pIDsBuffer;
-        Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresIdsBufferView;
+        Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pSphereSettingsCB;
 
+        Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresBufferView;
+        Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresIdsBufferView;
+       
         // pipelineManager
 
         std::unique_ptr<PipelineManager> pipeline;
-        PipelineData pipelineData{ m_pDevice, m_pImmediateContext, m_pSwapChain, m_pEngineFactory};
 
 
         // Matrices
@@ -136,20 +118,12 @@ namespace rvtx::dil
         Diligent::FirstPersonCamera m_Camera;
 
 
-
-
-        
-        Scene m_scene;
-
-
         // rvtx
 
         rvtx::SceneDescriptor sceneDescriptor;
         rvtx::WindowDescriptor wd;
         rvtx::RendererDescriptor rd;
         Diligent::Viewport vp;
-
-        // Molecules
 
         
     };

@@ -46,36 +46,6 @@ namespace rvtx::dil
         BindBuffers();
     }
 
-
-    SphereHandler::SphereHandler(PipelineManager& pipelineManager, PipelineData &_pipelineData, const Sphere* spheres, Uint32 sphereCount, RefCntAutoPtr<IRenderDevice> device,
-        RefCntAutoPtr<IDeviceContext> context,
-        RefCntAutoPtr<ISwapChain> swapChain,
-        RefCntAutoPtr<IEngineFactory> engineFactory) :
-        Spheres(spheres),
-        m_NumSpheres(sphereCount),
-        pipelineData(_pipelineData), m_pDevice(device), m_pImmediateContext(context), m_pSwapChain(swapChain), m_pEngineFactory(engineFactory)
-    {
-
-        initializePSO();
-        auto result = pipelineManager.create("pipeline sphere", { "shaders_hlsl/sphere/sphere.vsh",
-
-
-            "shaders_hlsl/sphere/sphere.gsh" ,
-            "shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
-
-
-        pipelineEntry = result.entry;
-
-
-
-
-        BindBuffers();
-        setSphereData();
-        CreateSphereBuffers();
-
-
-    }
-
     // ==========================================================
     // PIPELINE MANAGER
     // ==========================================================
@@ -198,7 +168,7 @@ namespace rvtx::dil
         m_pIDsBuffer->CreateView(idsViewDesc, &m_pSpheresIdsBufferView);
     }
 
-    void SphereHandler::SetSphereBuffers(const rvtx::dil::SphereHolder2& holder)
+    void SphereHandler::SetSphereBuffers(const rvtx::dil::SphereHolder& holder)
     {
         auto* srb = pipelineEntry->SRB.RawPtr();
         if (!srb) { OutputDebugStringA("[SphereHandler] SRB is null.\n"); return; }
@@ -243,7 +213,6 @@ namespace rvtx::dil
 
 
 
-
         pipelineEntry->PSO->CreateShaderResourceBinding(&pipelineEntry->SRB, true);
 
         
@@ -252,42 +221,14 @@ namespace rvtx::dil
     // ==========================================================
     // RENDU
     // ==========================================================
-    void SphereHandler::Render(const float4x4& viewMatrix,
-        const float4x4& projMatrix)
+
+    void SphereHandler::render(
+        const Diligent::FirstPersonCamera& m_Camera,
+        const Scene& scene)
     {
-        // Mettre à jour le constant buffer
-        {
-            MapHelper<SphereSettings> CBData(m_pImmediateContext, m_pSphereSettingsCB, MAP_WRITE, MAP_FLAG_DISCARD);
-            CBData->uMVMatrix = viewMatrix;
-            CBData->uProjMatrix = projMatrix;
-            CBData->uRadiusAdd = 0.0f;
-            CBData->uIsPerspective = 1;
-        }
+        const auto& viewMatrix = m_Camera.GetViewMatrix();
+        const auto& projMatrix = m_Camera.GetProjMatrix();
 
-        // Activer le pipeline
-        m_pImmediateContext->SetPipelineState(m_pPSO_Sphere);
-
-        // Binder les buffers dynamiques
-        auto varSpheres = m_pSRB_Sphere->GetVariableByName(SHADER_TYPE_VERTEX, "spheres");
-        if (varSpheres) varSpheres->Set(m_pSpheresBufferView);
-
-        auto varIDs = m_pSRB_Sphere->GetVariableByName(SHADER_TYPE_VERTEX, "ids");
-        if (varIDs) varIDs->Set(m_pSpheresIdsBufferView);
-
-        // Commit des ressources
-        m_pImmediateContext->CommitShaderResources(m_pSRB_Sphere, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-        // Draw
-        DrawAttribs drawAttrs;
-        drawAttrs.NumVertices = m_NumSpheres;
-        drawAttrs.Flags = DRAW_FLAG_VERIFY_ALL;
-        m_pImmediateContext->Draw(drawAttrs);
-    }
-
-    void SphereHandler::RenderPE(const float4x4& viewMatrix,
-        const float4x4& projMatrix)
-    {
-        // Mettre à jour le constant buffer
         {
             MapHelper<SphereSettings> CBData(m_pImmediateContext, m_pSphereSettingsCB, MAP_WRITE, MAP_FLAG_DISCARD);
             CBData->uMVMatrix = viewMatrix;
@@ -298,7 +239,6 @@ namespace rvtx::dil
 
         // Activer le pipeline
         m_pImmediateContext->SetPipelineState(pipelineEntry->PSO);
-        //m_pImmediateContext->SetPipelineState(m_pPSO_Sphere);
 
         // Binder les buffers dynamiques
         auto varSpheres = pipelineEntry->SRB->GetVariableByName(SHADER_TYPE_VERTEX, "spheres");
@@ -315,20 +255,7 @@ namespace rvtx::dil
         drawAttrs.NumVertices = m_NumSpheres;
         drawAttrs.Flags = DRAW_FLAG_VERIFY_ALL;
         m_pImmediateContext->Draw(drawAttrs);
-    }
 
-
-
-
-    void SphereHandler::render(
-        const Diligent::FirstPersonCamera& m_Camera,
-        const Scene& scene)
-    {
-        const auto& viewMatrix = m_Camera.GetViewMatrix();
-        const auto& projMatrix = m_Camera.GetProjMatrix();
-
-        //Render(viewMatrix, projMatrix);
-        RenderPE(viewMatrix, projMatrix);
     }
 
     glm::mat4 toGlm(const Diligent::float4x4& m)
@@ -344,20 +271,6 @@ namespace rvtx::dil
         return out;
     }
 
-    void SphereHandler::render2(const rvtx::Camera& cam, const Scene&)
-    {
-        const bool isGL = m_pDevice->GetDeviceInfo().IsGLDevice();
-
-        glm::mat4 V = cam.getViewMatrix();
-        glm::mat4 P = isGL
-            ? glm::perspectiveRH_NO(cam.fov, cam.getAspectRatio(), cam.zNear, cam.zFar)  // GL
-            : glm::perspectiveRH_ZO(cam.fov, cam.getAspectRatio(), cam.zNear, cam.zFar); // D3D/Vk
-
-        auto Vd = ToDiligent_ColumnMajor(V);
-        auto Pd = ToDiligent_ColumnMajor(P);
-        RenderPE(Vd, Pd);
-    }
-
     void SphereHandler::render_context(const rvtx::Camera& cam,
         const rvtx::Scene& scene,
         Diligent::IDeviceContext* ctx)
@@ -365,9 +278,6 @@ namespace rvtx::dil
         using namespace Diligent;
 
 
-
-
-        // Matrices caméra
         const bool isGL = m_pDevice->GetDeviceInfo().IsGLDevice();
         const glm::mat4 V = cam.getViewMatrix();
         glm::mat4 P = isGL
@@ -377,31 +287,25 @@ namespace rvtx::dil
         // <<< Flip Y uniquement hors OpenGL
         if (!isGL) {
             glm::mat4 flipY(1.0f);
-            flipY[1][1] = -1.0f;      // multiplie la ligne/colonne Y par -1
+            flipY[1][1] = -1.0f;
             P = flipY * P;
         }
 
         ctx->SetPipelineState(pipelineEntry->PSO);
 
-        // Pour chaque entité qui a Transform + SphereHolder2
-        auto view = scene.registry.view<rvtx::Transform, rvtx::dil::SphereHolder2>();
+        auto view = scene.registry.view<rvtx::Transform, rvtx::dil::SphereHolder>();
         for (auto ent : view)
         {
             const auto& xf = view.get<rvtx::Transform>(ent);
-            const auto& sh = view.get<rvtx::dil::SphereHolder2>(ent);
+            const auto& sh = view.get<rvtx::dil::SphereHolder>(ent);
             if (sh.size == 0) continue;
 
-            // --- Model matrix (T * R * S)
             const glm::mat4 T = glm::translate(glm::mat4(1.f), xf.position);
             const glm::mat4 R = glm::mat4_cast(xf.rotation);
-            //const glm::mat4 S = glm::scale(glm::mat4(1.f), xf.scale);
             const glm::mat4 M = T * R;
-
-            // --- Mettre à jour le constant buffer POUR CETTE ENTITÉ
-            // IMPORTANT: DISCARd à chaque update (une zone mémoire fraîche par draw)
             {
                 MapHelper<SphereSettings> cb(ctx, m_pSphereSettingsCB, MAP_WRITE, MAP_FLAG_DISCARD);
-                cb->uMVMatrix = ToDiligent_ColumnMajor(V * M); // VS attend des positions en espace vue
+                cb->uMVMatrix = ToDiligent_ColumnMajor(V * M);
                 cb->uProjMatrix = ToDiligent_ColumnMajor(P);
                 cb->uRadiusAdd = 0.0f;
                 cb->uIsPerspective = 1;

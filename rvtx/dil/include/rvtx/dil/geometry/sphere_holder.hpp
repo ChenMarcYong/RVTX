@@ -16,25 +16,25 @@
 
 namespace rvtx::dil
 {
-    struct SphereHolder2
+    struct SphereHolder
     {
-        SphereHolder2() = default;
-        ~SphereHolder2() = default;
+        SphereHolder() = default;
+        ~SphereHolder() = default;
 
-        SphereHolder2(const SphereHolder2&) = delete;
-        SphereHolder2& operator=(const SphereHolder2&) = delete;
-        SphereHolder2(SphereHolder2&&) noexcept = default;
-        SphereHolder2& operator=(SphereHolder2&&) noexcept = default;
+        SphereHolder(const SphereHolder&) = delete;
+        SphereHolder& operator=(const SphereHolder&) = delete;
+        SphereHolder(SphereHolder&&) noexcept = default;
+        SphereHolder& operator=(SphereHolder&&) noexcept = default;
 
-        static SphereHolder2 getMolecule(Diligent::IRenderDevice* device,
+        static SphereHolder getMolecule(Diligent::IRenderDevice* device,
             const rvtx::Molecule& molecule,
             const rvtx::MoleculeIDs* moleculeIds = nullptr);
 
-        static SphereHolder2 getNonResident(Diligent::IRenderDevice* device,
+        static SphereHolder getNonResident(Diligent::IRenderDevice* device,
             const rvtx::Molecule& molecule,
             const rvtx::MoleculeIDs* moleculeIds = nullptr);
 
-        static SphereHolder2 getSystem(Diligent::IRenderDevice* device,
+        static SphereHolder getSystem(Diligent::IRenderDevice* device,
             const rvtx::Molecule& molecule,
             const rvtx::MoleculeIDs* moleculeIds = nullptr);
 

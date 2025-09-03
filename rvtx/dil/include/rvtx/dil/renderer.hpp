@@ -1,4 +1,4 @@
-// DiligentRenderer3.hpp
+// DiligentRenderer.hpp
 #pragma once
 #include <functional>
 #include <memory>
@@ -26,24 +26,24 @@
 
 namespace rvtx::dil
 {
-    class DiligentRenderer3
+    class DiligentRenderer
     {
     public:
-        DiligentRenderer3() = default;
-        DiligentRenderer3(Diligent::IRenderDevice* dev,
+        DiligentRenderer() = default;
+        DiligentRenderer(Diligent::IRenderDevice* dev,
             Diligent::IDeviceContext* ctx,
             Diligent::ISwapChain* swap,
             rvtx::dil::PipelineManager& pipeline,
             uint32_t width,
             uint32_t height);
 
-        DiligentRenderer3(const DiligentRenderer3&) = delete;
-        DiligentRenderer3& operator=(const DiligentRenderer3&) = delete;
+        DiligentRenderer(const DiligentRenderer&) = delete;
+        DiligentRenderer& operator=(const DiligentRenderer&) = delete;
 
-        DiligentRenderer3(DiligentRenderer3&&) noexcept = default;
-        DiligentRenderer3& operator=(DiligentRenderer3&&) noexcept = default;
+        DiligentRenderer(DiligentRenderer&&) noexcept = default;
+        DiligentRenderer& operator=(DiligentRenderer&&) noexcept = default;
 
-        ~DiligentRenderer3() = default;
+        ~DiligentRenderer() = default;
 
         // --- comme ton Renderer OpenGL ---
         inline void enableUI(bool enable) { m_EnableUI = enable; }
@@ -55,15 +55,11 @@ namespace rvtx::dil
 
         void Resize(uint32_t width, uint32_t height);
 
-        // Render complet
+        // Render 
         void Render(const rvtx::Camera& cam,
             const rvtx::Scene& scene,
             const std::function<void()>& updateUI = [] {});
 
-        // Variante si tu veux bypasser le postprocess
-        void Render2(const rvtx::Camera& cam,
-            const rvtx::Scene& scene,
-            const std::function<void()>& updateUI = [] {});
 
         void SetClearColor(const Diligent::float4& c) { m_ClearColor = c; }
         const Diligent::float4& GetClearColor() const { return m_ClearColor; }
@@ -85,20 +81,20 @@ namespace rvtx::dil
 
         bool m_EnableUI = true;
 
-        // --- Nouveau : ton GBuffer encapsulé ---
+        // --- Nouveau : GBuffer  ---
         std::unique_ptr<rvtx::dil::GBufferPass> m_GBuffer;
         std::unique_ptr<rvtx::dil::PostProcessPassDiligent> m_postProcessPass;
         Diligent::RefCntAutoPtr<Diligent::IPipelineState>         m_LightingPSO;
         Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_LightingSRB;
 
-        // --- Render target finale (équiv. m_rendererTexture/m_rendererTextureFBO) ---
+        // --- Render target finale ---
         Diligent::RefCntAutoPtr<Diligent::ITexture>     m_FinalTex;
         Diligent::RefCntAutoPtr<Diligent::ITextureView> m_FinalRTV;
         Diligent::RefCntAutoPtr<Diligent::ITextureView> m_FinalSRV;
 
 
 
-        // --- PSO / SRB pour ton postprocess ---
+        // --- PSO / SRB pour postprocess ---
         Diligent::RefCntAutoPtr<Diligent::IPipelineState>         m_PostPSO;
         Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_PostSRB;
 
@@ -107,7 +103,7 @@ namespace rvtx::dil
 
         Diligent::float4 m_ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-        //std::unique_ptr<rvtx::dil::PipelineManager> m_Pipeline;
+
         rvtx::dil::PipelineManager* m_Pipeline = nullptr;
     }; 
 } // namespace rvtx::dil
