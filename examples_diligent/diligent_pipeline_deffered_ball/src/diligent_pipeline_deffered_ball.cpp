@@ -1,46 +1,19 @@
 #include "diligent_pipeline_deffered_ball.hpp"
 
-
-#include <rvtx/dil/geometry/sphere_holder.hpp>
-#include <rvtx/dil/geometry/ball_and_stick_holder.hpp>
-#include <rvtx/molecule/loader.hpp>
-
-#include "rvtx/dil/utils/pipeline_manager.hpp"
-
-#include <Graphics/GraphicsEngine/interface/Shader.h>
-
-#include <filesystem>
 #include <windows.h>
-#include <string>
-
-
-#include <fstream>
-#include <sstream>
-#include <stdexcept>
-
-#include "MapHelper.hpp"
-
 
 //rvtx
 
 #include <entt/entity/registry.hpp>
-#include <fmt/chrono.h>
-#include <rvtx/core/logger.hpp>
-#include <rvtx/core/time.hpp>
 #include <rvtx/molecule/molecule.hpp>
 #include <rvtx/system/camera.hpp>
 #include <rvtx/system/name.hpp>
 #include <rvtx/system/scene_descriptor.hpp>
 #include <rvtx/system/transform.hpp>
-#include <rvtx/molecule/color.hpp>
 
-#include <array>
-
-#include "InputController.hpp"
-
-
-#include <unordered_map>
-#include <cstdint>
+#include <rvtx/dil/geometry/sphere_holder.hpp>
+#include <rvtx/dil/geometry/ball_and_stick_holder.hpp>
+#include <rvtx/molecule/loader.hpp>
 
 #include "stb_image_write.h"
 
@@ -151,6 +124,10 @@ namespace rvtx::dil
         SetupViewPort();
     }
 
+
+    // ==========================================================
+    // Chargement des Molécules
+    // ==========================================================
 
     std::vector<Molecule> DiligentDeffered::loadAllMoleculesFromScene(
         const std::filesystem::path& sceneJsonPath,

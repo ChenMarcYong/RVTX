@@ -56,13 +56,13 @@ namespace rvtx::dil
         PipelineManager(PipelineData& pipelineData);
 
         // Crée ou retourne un pipeline existant
-        CreatePipelineResult create(const std::string& name,
+        /*CreatePipelineResult create(const std::string& name,
             const std::vector<std::filesystem::path>& shaderPaths,
             Diligent::GraphicsPipelineStateCreateInfo &PSOCreateInfo,
             Diligent::ShaderResourceVariableDesc Vars[],
-            size_t numVars);
+            size_t numVars);*/
 
-        PipelineEntry* create2(const std::string& name,
+        PipelineEntry* create(const std::string& name,
             const std::vector<std::filesystem::path>& shaderPaths,
             Diligent::GraphicsPipelineStateCreateInfo& PSOCreateInfo,
             Diligent::ShaderResourceVariableDesc Vars[],

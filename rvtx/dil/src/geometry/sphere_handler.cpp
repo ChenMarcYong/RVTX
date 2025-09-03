@@ -33,14 +33,14 @@ namespace rvtx::dil
         initializePSO();
 
         if(useGeom)
-        pipelineEntry = pipelineManager.create2("pipeline sphere", { "shaders_hlsl/sphere/sphere.vsh",
+        pipelineEntry = pipelineManager.create("pipeline sphere", { "shaders_hlsl/sphere/sphere.vsh",
             
 
             "shaders_hlsl/sphere/sphere.gsh" ,
             "shaders_hlsl/sphere/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
 
         else
-            pipelineEntry = pipelineManager.create2("pipeline sphere", { "shaders_hlsl/sphereNogs/sphere.vsh",
+            pipelineEntry = pipelineManager.create("pipeline sphere", { "shaders_hlsl/sphereNogs/sphere.vsh",
         "shaders_hlsl/sphereNogs/sphere.psh" }, PSOStateCreateInfo, Vars, _countof(Vars));
 
         BindBuffers();

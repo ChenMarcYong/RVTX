@@ -47,7 +47,7 @@ namespace rvtx::dil
     {
     }
 
-    PipelineManager::CreatePipelineResult PipelineManager::create(
+    /*PipelineManager::CreatePipelineResult PipelineManager::create(
         const std::string& name,
         const std::vector<std::filesystem::path>& shaderPaths,
         GraphicsPipelineStateCreateInfo &PSOCreateInfo,
@@ -59,15 +59,6 @@ namespace rvtx::dil
         Diligent::RefCntAutoPtr<Diligent::IPipelineState> pPSO;
         Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> SRB;
 
-        // Vérifier si déjà existant
-        //if (m_pipelines.find(name) != m_pipelines.end())
-        //{
-
-        //    PipelineEntry entry{ m_pipelines[name].PSO, m_pipelines[name].SRB};
-
-        //    OutputDebugStringA("PipelineEntry already exists \n");
-        //    return { &entry, false };
-        //}
         // Créer shaders
         RefCntAutoPtr<IShader> pVS, pPS, pGS;
         for (const auto& shaderPath : shaderPaths)
@@ -108,8 +99,8 @@ namespace rvtx::dil
 
         return { &m_pipelines[name], true };
     }
-
-    PipelineManager::PipelineEntry* PipelineManager::create2(
+    */
+    PipelineManager::PipelineEntry* PipelineManager::create(
         const std::string& name,
         const std::vector<std::filesystem::path>& shaderPaths,
         GraphicsPipelineStateCreateInfo& PSOCreateInfo,
@@ -161,29 +152,11 @@ namespace rvtx::dil
         AddVariablePSO(Vars, numVars, PSOCreateInfo, pPSO);
         std::string msg = "WARN:" + name + " not null before CreateGraphicsPipelineState\n";
 
-        //OutputDebugStringA(msg.c_str());
-        // Stocker
         PipelineEntry entry{ pPSO, SRB };
         m_pipelines[name] = entry;
 
         return &m_pipelines[name];
     }
-
-
-    /*PipelineManager::PipelineEntry* PipelineManager::CreateGraphicsPipeline(GraphicsPipelineStateCreateInfo& PSOCreateInfo)
-    {
-        RefCntAutoPtr<IPipelineState> pPSO;
-        m_pDevice->CreateGraphicsPipelineState(PSOCreateInfo, &pPSO);
-
-        // Créer SRB
-        RefCntAutoPtr<IShaderResourceBinding> pSRB;
-        pPSO->CreateShaderResourceBinding(&pSRB, true);
-
-        // Stocker
-        PipelineEntry entry{ PSOCreateInfo, pPSO, pSRB };
-        m_pipelines["name"] = entry;
-        return &m_pipelines["name"];
-    }*/
 
     
 
@@ -202,7 +175,6 @@ namespace rvtx::dil
         PSOCreateInfo.GraphicsPipeline.InputLayout = LayoutDesc;
 
         m_pDevice->CreateGraphicsPipelineState(PSOCreateInfo, &m_pPSO);
-        //pipelineData.device->CreateGraphicsPipelineState(PSOCreateInfo, &m_pPSO);
     }
 
 
@@ -220,9 +192,7 @@ namespace rvtx::dil
         // Charger fichier source
         std::ifstream file(path.string());
         if (!file.is_open())
-            
             ThrowShaderError("Failed to open shader file: " + path.string());
-            //throw std::runtime_error("Failed to open shader file: " + path.string());
 
 
         ShaderCreateInfo ShaderCI;
@@ -232,7 +202,6 @@ namespace rvtx::dil
 
         RefCntAutoPtr<IShaderSourceInputStreamFactory> pShaderSourceFactory;
         m_pEngineFactory->CreateDefaultShaderSourceStreamFactory(nullptr, &pShaderSourceFactory);
-        //pipelineData.engineFactory->CreateDefaultShaderSourceStreamFactory(nullptr, &pShaderSourceFactory);
 
         ShaderCI.pShaderSourceStreamFactory = pShaderSourceFactory;
 
@@ -240,8 +209,6 @@ namespace rvtx::dil
         auto shaderType = GetShaderTypeFromExtension(path);
         ShaderCI.Desc.ShaderType = shaderType;
         ShaderCI.EntryPoint = "main";
-        //ShaderCI.Desc.Name = path.filename().string().c_str();
-        //ShaderCI.FilePath = path.string().c_str();
 
         std::string fileName = path.filename().string();
         ShaderCI.Desc.Name = fileName.c_str();
@@ -250,12 +217,8 @@ namespace rvtx::dil
         ShaderCI.FilePath = filePathStr.c_str();
 
 
-        //OutputDebugStringA(("Succesfully open shader file : " + path.string()).c_str());
-
-
         RefCntAutoPtr<IShader> shader;
         m_pDevice->CreateShader(ShaderCI, &shader);
-        //pipelineData.device->CreateShader(ShaderCI, &shader);
 
         if (!shader)
             ThrowShaderError("Failed to create shader: " + path.string());

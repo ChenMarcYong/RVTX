@@ -35,7 +35,6 @@ using namespace Diligent;
 namespace rvtx::dil
 {
 
-     // 16B aligné
    
 
     struct DebugCBData { float Window[2]; float Gamma; Uint32 Invert; };
@@ -73,7 +72,7 @@ namespace rvtx::dil
 
 
 
-        m_PipelineEntry = m_Manager->create2("LinearizeDepth", { "shaders_hlsl/shading/linearize_depth.psh",
+        m_PipelineEntry = m_Manager->create("LinearizeDepth", { "shaders_hlsl/shading/linearize_depth.psh",
             "shaders_hlsl/full_screen.vsh"}, PSOStateCreateInfo, Vars, _countof(Vars));
 
         if (useDebug)
@@ -96,7 +95,7 @@ namespace rvtx::dil
                 {SHADER_TYPE_PIXEL, "CameraCB",       SHADER_RESOURCE_VARIABLE_TYPE_STATIC },
                 {SHADER_TYPE_PIXEL, "DebugCB",        SHADER_RESOURCE_VARIABLE_TYPE_STATIC },
             };
-            m_PipelineEntryDebug = m_Manager->create2("LinearizeDepthDebug", { "shaders_hlsl/shading/linearize_depth_debug.psh",
+            m_PipelineEntryDebug = m_Manager->create("LinearizeDepthDebug", { "shaders_hlsl/shading/linearize_depth_debug.psh",
         "shaders_hlsl/full_screen_debug.vsh" }, PSOStateCreateInfoDebug, VarsDebug, _countof(VarsDebug));
         
 
@@ -106,8 +105,6 @@ namespace rvtx::dil
 
                 RefCntAutoPtr<IBuffer> pDebugCB;
                 {
-                    //BufferDesc bd; bd.Name = "DebugCB"; bd.BindFlags = BIND_UNIFORM_BUFFER;
-                    //bd.Usage = USAGE_DYNAMIC; bd.CPUAccessFlags = CPU_ACCESS_WRITE; bd.Size = sizeof(DebugCBData);
                     
                     
                     BufferDesc bd;
@@ -120,12 +117,8 @@ namespace rvtx::dil
                     
                     getManager().m_pDevice->CreateBuffer(bd, nullptr, &m_pDebugCB);
 
-                    // Ex: fenêtre sur les 20% proches + contraste fort
                     MapHelper<DebugCBData> map(getManager().m_pImmediateContex, m_pDebugCB, MAP_WRITE, MAP_FLAG_DISCARD);
-                    //map->Window[0] = 0.0f;   // NearDepth
-                    //map->Window[1] = 0.03f;   // FarDepth   élargis la fenêtre
-                    //map->Gamma = 0.6f;   // <1 = éclaircit, plus lisible
-                    //map->Invert = 0;
+
 
                     m_PipelineEntryDebug->PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "DebugCB")->Set(m_pDebugCB);
                 }
@@ -158,12 +151,9 @@ namespace rvtx::dil
             // 3) Créer le SRB ensuite (contiendra gDepth qui est MUTABLE)
             m_PipelineEntry->PSO->CreateShaderResourceBinding(&m_PipelineEntry->SRB, true);
 
-            // 4) Exemple de binding de la depth (si tu l’as sous forme de SRV)
-            // m_PipelineEntry->SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gDepth")->Set(pDepthSRV);
         }
 
 
-        //Camera cam;
 
 
     }
@@ -231,13 +221,6 @@ namespace rvtx::dil
         ctx->SetPipelineState(m_PipelineEntry->PSO);
         ctx->CommitShaderResources(m_PipelineEntry->SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        //ITextureView* RTVs[] = { m_OutputRTV };
-        //ctx->SetRenderTargets(1, RTVs, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-        //const float green[4] = { 0,1,0,1 };
-        //ctx->SetRenderTargets(1, &m_OutputRTV, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        //ctx->ClearRenderTarget(m_OutputRTV, green, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
 
 
         // Dessin fullscreen
@@ -277,9 +260,6 @@ namespace rvtx::dil
 
 
 
-        //const float pink[4] = { 1,0,1,1 };
-        //ctx->SetRenderTargets(1, &pRTV, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        //ctx->ClearRenderTarget(pRTV, pink, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
 
         OutputDebugStringA("[LinearDepth] Debug pass draw\n");
@@ -372,7 +352,6 @@ namespace rvtx::dil
         GP.DepthStencilDesc.DepthEnable = False;
         GP.BlendDesc.RenderTargets[0].BlendEnable = False;
 
-        // Ressources (noms = ceux attendus par ton shader SSAO HLSL/GLSL)
         ShaderResourceVariableDesc Vars[] = {
             {SHADER_TYPE_PIXEL, "gViewPosNormal", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
             {SHADER_TYPE_PIXEL, "gNoise",         SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
@@ -381,7 +360,6 @@ namespace rvtx::dil
 
         PsoCI.PSODesc.ResourceLayout.NumVariables = static_cast<Uint32>(std::size(Vars));
         PsoCI.PSODesc.ResourceLayout.Variables = Vars;
-        // Samplers statiques (équiv. GL_NEAREST/CLAMP pour depth/geom, REPEAT pour noise)
 
         SamplerDesc sampPointClamp{};
         sampPointClamp.MinFilter = sampPointClamp.MagFilter = sampPointClamp.MipFilter = FILTER_TYPE_POINT;
@@ -400,7 +378,7 @@ namespace rvtx::dil
         PsoCI.PSODesc.ResourceLayout.ImmutableSamplers = Imtbl;
 
 
-        auto* entry = m_Manager->create2(
+        auto* entry = m_Manager->create(
             "SSAO",
             {
                 "shaders_hlsl/shading/ssao_debug2.psh",         //shaders_hlsl/shading/ssao_debug2.psh
@@ -561,9 +539,9 @@ namespace rvtx::dil
         if (m_SRB)
         {
             if (m_ViewPosNormalSRV)
-                //m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_NoiseSRV)
-                //m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise")->Set(m_NoiseSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
+                m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise")->Set(m_NoiseSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_LinearDepthSRV)
                 m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
 
@@ -580,15 +558,12 @@ namespace rvtx::dil
     void SSAOPostProcessDiligent::renderToBackBuffer(const rvtx::Camera& camera)
     {
 
-
-
         Diligent::IDeviceContext* ctx = getManager().m_pImmediateContex;
         auto* rtv = getManager().m_pSwapChain->GetCurrentBackBufferRTV();
         const auto bb = rtv->GetTexture()->GetDesc();
 
         ctx->SetRenderTargets(1, &rtv, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        // viewport + scissor plein écran (IMPORTANT après un resize)
         Viewport vp{ 0, 0, float(bb.Width), float(bb.Height), 0, 1 };
         ctx->SetViewports(1, &vp, bb.Width, bb.Height);
         Rect scissor{ 0, 0, (Int32)bb.Width, (Int32)bb.Height };
@@ -596,7 +571,6 @@ namespace rvtx::dil
         IRenderDevice*  m_Device = getManager().m_pDevice;
         resize(m_Device, bb.Width, bb.Height);
 
-         //MAJ des CB
         {
             MapHelper<SSAOParamsCB> map(ctx, m_CB, MAP_WRITE, MAP_FLAG_DISCARD);
             map->uProjMatrix = ToFloat4x4ColumnMajor(camera.getProjectionMatrix());
@@ -628,16 +602,8 @@ namespace rvtx::dil
             std::memcpy(map, tmp.data(), sizeof(float) * 4 * m_KernelSize);
         }
 
-        std::string msg2 = "[SSAO] m_AOKernel size : " + std::to_string(m_AOKernel.size())+"\n";
-        OutputDebugStringA(msg2.c_str());
-        //{ // debug
-        //    MapHelper<DebugSizeCB> map(ctx, m_CBDebug, MAP_WRITE, MAP_FLAG_DISCARD);
-        //    map->InvRTSize = float2(1.0f / m_width, 1.0f / m_height);
-        //}
 
-
-        // PSO debug + SRV correctes
-        ctx->SetPipelineState(m_PSO); // <-- ton PSO unique pour debug
+        ctx->SetPipelineState(m_PSO);
         if (m_SRB)
         {
             if (m_ViewPosNormalSRV)
@@ -673,7 +639,7 @@ namespace rvtx::dil
     void SSAOPostProcessDiligent::resize(IRenderDevice* device, uint32_t w, uint32_t h)
     {
         if (!device || w == 0 || h == 0) return;
-        createTarget(device, w, h); // recrée m_Output + m_OutputRTV + m_OutputSRV
+        createTarget(device, w, h);
     }
 
 
@@ -689,13 +655,11 @@ namespace rvtx::dil
         for (uint32_t i = 0; i < m_KernelSize; i++)
         {
             // échantillon sur l’hémisphère orientée Z+
-            glm::vec3 sample = glm::sphericalRand(1.0f); // vecteur aléatoire sur la sphère
-            sample.z = std::abs(sample.z);               // garder côté hémisphère positif
+            glm::vec3 sample = glm::sphericalRand(1.0f);
+            sample.z = std::abs(sample.z);
 
-            // appliquer un facteur aléatoire pour l'éloignement radial
             sample *= dist(rng);
 
-            // interpolation progressive (points plus denses près du centre)
             float scale = static_cast<float>(i) / static_cast<float>(m_KernelSize);
             scale = glm::mix(0.01f, 1.0f, scale * scale);
 
@@ -710,18 +674,15 @@ namespace rvtx::dil
     {
         using namespace Diligent;
 
-        // Sécurité
-        if (size == 0) size = 4;
         m_Noise.Release();
         m_NoiseSRV.Release();
         m_NoiseTextureSize = size;
 
         // 1) Générer les vecteurs 2D aléatoires normalisés (z = 0)
-        //    (comme ta version GL : vec3(rand(-1,1), rand(-1,1), 0) normalisé)
         std::mt19937 rng{ std::random_device{}() };
         std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-        std::vector<float> noise; // RG16F => 2 floats par texel
+        std::vector<float> noise;
         noise.resize(static_cast<size_t>(size) * size * 2);
 
         for (uint32_t y = 0; y < size; ++y)
@@ -748,14 +709,14 @@ namespace rvtx::dil
         desc.Height = size;
         desc.MipLevels = 1;
         desc.SampleCount = 1;
-        desc.Format = TEX_FORMAT_RG16_FLOAT; // compact et suffisant pour (x,y)
-        desc.Usage = USAGE_IMMUTABLE;       // le bruit ne change pas après création
+        desc.Format = TEX_FORMAT_RG16_FLOAT; 
+        desc.Usage = USAGE_IMMUTABLE;      
         desc.BindFlags = BIND_SHADER_RESOURCE;
 
         // 3) Données initiales
         TextureSubResData sub{};
         sub.pData = noise.data();
-        sub.Stride = size * sizeof(float) * 2; // row pitch (bytes)
+        sub.Stride = size * sizeof(float) * 2;
 
         TextureData init{};
         init.pSubResources = &sub;
@@ -780,7 +741,7 @@ namespace rvtx::dil
         uint32_t height,
         PipelineManager& manager)
         : Pass(width, height),
-        m_linearizeDepth(width, height, manager), // appelle le ctor de Pass
+        m_linearizeDepth(width, height, manager),
         m_ssao(width, height, manager),
         m_PipelineManager(&manager)
     {
