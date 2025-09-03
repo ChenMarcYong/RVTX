@@ -16,9 +16,7 @@ namespace rvtx::dil
 {
     struct GeometryHandler
     {
-        virtual void render(const Diligent::FirstPersonCamera& m_Camera, const Scene& scene) {}
-        virtual void render2(const rvtx::Camera& m_Camera, const Scene& scene){}
-        virtual void render_context(const rvtx::Camera& m_Camera, const Scene& scene, Diligent::IDeviceContext* ctx) = 0;
+        virtual void render(const rvtx::Camera& m_Camera, const Scene& scene, Diligent::IDeviceContext* ctx) = 0;
 
         virtual void BindBuffers(){}
         virtual void setSphereData() {}
@@ -44,31 +42,11 @@ namespace rvtx::dil
             return *ptr;
         }
 
-        void renderAll(const Diligent::FirstPersonCamera& m_Camera, const Scene& scene)
+
+        void render(const rvtx::Camera& camera, const Scene& scene, Diligent::IDeviceContext* ctx) override
         {
             for (auto& handler : m_handlers)
-                handler->render(m_Camera, scene);
-        }
-
-        void clear() { m_handlers.clear(); }
-
-
-        void render(const Diligent::FirstPersonCamera& camera, const Scene& scene) override
-        {
-            for (auto& handler : m_handlers)
-                handler->render(camera, scene);
-        }
-
-        void render2(const rvtx::Camera& camera, const Scene& scene) override
-        {
-            for (auto& handler : m_handlers)
-                handler->render2(camera, scene);
-        }
-
-        void render_context(const rvtx::Camera& camera, const Scene& scene, Diligent::IDeviceContext* ctx) override
-        {
-            for (auto& handler : m_handlers)
-                handler->render_context(camera, scene, ctx);
+                handler->render(camera, scene, ctx);
         }
 
         void BindBuffers() override

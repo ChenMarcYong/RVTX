@@ -146,7 +146,7 @@ namespace rvtx::dil
 
         m_GBuffer->Render(m_Ctx, [&] {
             if (m_Geometry)
-                m_Geometry->render_context(cam, scene, m_Ctx);
+                m_Geometry->render(cam, scene, m_Ctx);
             });
 
         if (m_postProcessPass) {

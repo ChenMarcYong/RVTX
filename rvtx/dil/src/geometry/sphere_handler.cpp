@@ -222,42 +222,6 @@ namespace rvtx::dil
     // RENDU
     // ==========================================================
 
-    void SphereHandler::render(
-        const Diligent::FirstPersonCamera& m_Camera,
-        const Scene& scene)
-    {
-        const auto& viewMatrix = m_Camera.GetViewMatrix();
-        const auto& projMatrix = m_Camera.GetProjMatrix();
-
-        {
-            MapHelper<SphereSettings> CBData(m_pImmediateContext, m_pSphereSettingsCB, MAP_WRITE, MAP_FLAG_DISCARD);
-            CBData->uMVMatrix = viewMatrix;
-            CBData->uProjMatrix = projMatrix;
-            CBData->uRadiusAdd = 0.0f;
-            CBData->uIsPerspective = 1;
-        }
-
-        // Activer le pipeline
-        m_pImmediateContext->SetPipelineState(pipelineEntry->PSO);
-
-        // Binder les buffers dynamiques
-        auto varSpheres = pipelineEntry->SRB->GetVariableByName(SHADER_TYPE_VERTEX, "spheres");
-        if (varSpheres) varSpheres->Set(m_pSpheresBufferView);
-
-        auto varIDs = pipelineEntry->SRB->GetVariableByName(SHADER_TYPE_VERTEX, "ids");
-        if (varIDs) varIDs->Set(m_pSpheresIdsBufferView);
-
-        // Commit des ressources
-        m_pImmediateContext->CommitShaderResources(pipelineEntry->SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-        // Draw
-        DrawAttribs drawAttrs;
-        drawAttrs.NumVertices = m_NumSpheres;
-        drawAttrs.Flags = DRAW_FLAG_VERIFY_ALL;
-        m_pImmediateContext->Draw(drawAttrs);
-
-    }
-
     glm::mat4 toGlm(const Diligent::float4x4& m)
     {
         glm::mat4 mat = glm::make_mat4(&m.m[0][0]);
@@ -271,7 +235,7 @@ namespace rvtx::dil
         return out;
     }
 
-    void SphereHandler::render_context(const rvtx::Camera& cam,
+    void SphereHandler::render(const rvtx::Camera& cam,
         const rvtx::Scene& scene,
         Diligent::IDeviceContext* ctx)
     {

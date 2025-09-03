@@ -186,20 +186,6 @@ namespace rvtx::dil
     }
 
 
-
-
-    void BallAndStickHandler::render(
-        const Diligent::FirstPersonCamera& m_Camera,
-        const Scene& scene)
-    {
-        const auto& viewMatrix = m_Camera.GetViewMatrix();
-        const auto& projMatrix = m_Camera.GetProjMatrix();
-
-        //Render(viewMatrix, projMatrix);
-        RenderPE(viewMatrix, projMatrix);
-    }
-
-
     inline Diligent::float4x4 ToDiligent_ColumnMajor(const glm::mat4& m)
     {
         Diligent::float4x4 out;
@@ -207,24 +193,11 @@ namespace rvtx::dil
         return out;
     }
 
-    void BallAndStickHandler::render2(const rvtx::Camera& cam, const Scene&)
-    {
-        const bool isGL = m_pDevice->GetDeviceInfo().IsGLDevice();
-
-        glm::mat4 V = cam.getViewMatrix();
-        glm::mat4 P = isGL
-            ? glm::perspectiveRH_NO(cam.fov, cam.getAspectRatio(), cam.zNear, cam.zFar)  // GL
-            : glm::perspectiveRH_ZO(cam.fov, cam.getAspectRatio(), cam.zNear, cam.zFar); // D3D/Vk
-
-        auto Vd = ToDiligent_ColumnMajor(V);
-        auto Pd = ToDiligent_ColumnMajor(P);
-        RenderPE(Vd, Pd);
-    }
 
 
     
 
-    void BallAndStickHandler::render_context(const rvtx::Camera& cam,
+    void BallAndStickHandler::render(const rvtx::Camera& cam,
         const rvtx::Scene& scene,
         Diligent::IDeviceContext* ctx)
     {

@@ -37,10 +37,9 @@ namespace rvtx::dil
         // Rendu des sphères (appelé depuis le SampleBase Render)
 
 
-        void render(const Diligent::FirstPersonCamera& m_Camera, const Scene& scene) override;
 
 
-        void render_context(const rvtx::Camera& m_Camera, const Scene& scene, Diligent::IDeviceContext* ctx) override;
+        void render(const rvtx::Camera& m_Camera, const Scene& scene, Diligent::IDeviceContext* ctx) override;
 
         void SetSphereBuffers(const SphereHolder& holder);
 
