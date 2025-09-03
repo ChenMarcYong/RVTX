@@ -74,7 +74,6 @@ namespace rvtx::dil
 
         CreateBuffers(pDevice, width, height);
 
-        // Si un SRB/PSO ailleurs référence ces SRV, il faut les rebinder après le resize.
     }
 
     void GBufferPass::BeginPass(IDeviceContext* pCtx)
@@ -103,11 +102,10 @@ namespace rvtx::dil
 
     void GBufferPass::EndPass(IDeviceContext* pCtx)
     {
-        // Débinde proprement (optionnel)
         pCtx->SetRenderTargets(0, nullptr, nullptr, RESOURCE_STATE_TRANSITION_MODE_NONE);
     }
 
-    void GBufferPass::Render(IDeviceContext* pCtx, GeometryDraw geometryDraw)
+    void GBufferPass::render(IDeviceContext* pCtx, GeometryDraw geometryDraw)
     {
         BeginPass(pCtx);
         if (geometryDraw) geometryDraw();

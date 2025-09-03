@@ -326,7 +326,7 @@ namespace rvtx::dil
         auto drawUI = []() {};
 
 
-        m_Renderer->Render(*m_RvtxCamera, scene, drawUI);
+        m_Renderer->render(*m_RvtxCamera, scene, drawUI);
 
 
         

@@ -56,7 +56,7 @@ namespace rvtx::dil
         void Resize(uint32_t width, uint32_t height);
 
         // Render 
-        void Render(const rvtx::Camera& cam,
+        void render(const rvtx::Camera& cam,
             const rvtx::Scene& scene,
             const std::function<void()>& updateUI = [] {});
 

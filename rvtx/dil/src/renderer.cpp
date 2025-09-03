@@ -136,7 +136,7 @@ namespace rvtx::dil
     }
 
 
-    void DiligentRenderer::Render(const rvtx::Camera& cam,
+    void DiligentRenderer::render(const rvtx::Camera& cam,
         const rvtx::Scene& scene,
         const std::function<void()>& updateUI)
     {
@@ -144,7 +144,7 @@ namespace rvtx::dil
 
 
 
-        m_GBuffer->Render(m_Ctx, [&] {
+        m_GBuffer->render(m_Ctx, [&] {
             if (m_Geometry)
                 m_Geometry->render(cam, scene, m_Ctx);
             });

@@ -1,5 +1,5 @@
-#ifndef RVTX_DIL_GEOMETRY_SPHERE_HANDLER_2_HPP
-#define RVTX_DIL_GEOMETRY_SPHERE_HANDLER_2_HPP
+#ifndef RVTX_DIL_GEOMETRY_SPHERE_HANDLER_HPP
+#define RVTX_DIL_GEOMETRY_SPHERE_HANDLER_HPP
 
 #pragma once
 
@@ -87,9 +87,9 @@ namespace rvtx::dil
         // Buffers
         Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pSphereSettingsCB;
         Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pSpheresBuffer;
-        Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pIDsBuffer;              // Nouveau : buffer des IDs
+        Diligent::RefCntAutoPtr<Diligent::IBuffer>     m_pIDsBuffer;
         Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresBufferView;
-        Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresIdsBufferView;   // Nouveau : view des IDs
+        Diligent::RefCntAutoPtr<Diligent::IBufferView> m_pSpheresIdsBufferView;
 
         Diligent::GraphicsPipelineStateCreateInfo PSOStateCreateInfo;
         Diligent::ShaderCreateInfo ShaderCreateI;

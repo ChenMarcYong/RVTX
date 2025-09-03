@@ -1,5 +1,5 @@
-#ifndef RVTX_GL_PASS_POST_PROCESS_2_HPP
-#define RVTX_GL_PASS_POST_PROCESS_2_HPP
+#ifndef RVTX_GL_PASS_POST_PROCESS_HPP
+#define RVTX_GL_PASS_POST_PROCESS_HPP
 
 #include <cstdint>
 #include <glm/vec3.hpp>

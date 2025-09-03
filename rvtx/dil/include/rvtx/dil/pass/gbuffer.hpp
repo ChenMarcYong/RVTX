@@ -38,7 +38,7 @@ namespace rvtx::dil
         void EndPass(IDeviceContext* pCtx);
 
         void Resize(IRenderDevice* pDevice, Uint32 width, Uint32 height);
-        void Render(IDeviceContext* pCtx, GeometryDraw geometryDraw);
+        void render(IDeviceContext* pCtx, GeometryDraw geometryDraw);
 
     private:
         void CreateBuffers(IRenderDevice* pDevice, Uint32 width, Uint32 height);
