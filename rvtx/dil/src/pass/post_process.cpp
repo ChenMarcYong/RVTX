@@ -286,7 +286,7 @@ namespace rvtx::dil
         auto* entry = m_Manager->create(
             "SSAO",
             {
-                "shaders_hlsl/shading/ssao_debug2.psh",         //shaders_hlsl/shading/ssao_debug2.psh
+                "shaders_hlsl/shading/ssao_debug.psh",         //shaders_hlsl/shading/ssao.psh
                 "shaders_hlsl/full_screen.vsh"
             },
             PsoCI, Vars,
