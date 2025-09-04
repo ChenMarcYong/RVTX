@@ -74,64 +74,7 @@ namespace rvtx::dil
 
         m_PipelineEntry = m_Manager->create("LinearizeDepth", { "shaders_hlsl/shading/linearize_depth.psh",
             "shaders_hlsl/full_screen.vsh"}, PSOStateCreateInfo, Vars, _countof(Vars));
-
-        if (useDebug)
-        {
-            GraphicsPipelineStateCreateInfo PSOStateCreateInfoDebug{};
-            {
-                auto& GP = PSOStateCreateInfoDebug.GraphicsPipeline;
-                GP.NumRenderTargets = 1;
-                GP.RTVFormats[0] = m_Manager->m_pSwapChain->GetDesc().ColorBufferFormat; // backbuffer
-                GP.DSVFormat = TEX_FORMAT_UNKNOWN;
-                GP.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-                GP.RasterizerDesc.CullMode = CULL_MODE_NONE;
-                GP.DepthStencilDesc.DepthEnable = False;
-                GP.BlendDesc.RenderTargets[0].BlendEnable = False;
-            }
-
-
-            ShaderResourceVariableDesc VarsDebug[] = {
-                {SHADER_TYPE_PIXEL, "LinearDepthTex", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-                {SHADER_TYPE_PIXEL, "CameraCB",       SHADER_RESOURCE_VARIABLE_TYPE_STATIC },
-                {SHADER_TYPE_PIXEL, "DebugCB",        SHADER_RESOURCE_VARIABLE_TYPE_STATIC },
-            };
-            m_PipelineEntryDebug = m_Manager->create("LinearizeDepthDebug", { "shaders_hlsl/shading/linearize_depth_debug.psh",
-        "shaders_hlsl/full_screen_debug.vsh" }, PSOStateCreateInfoDebug, VarsDebug, _countof(VarsDebug));
-        
-
-            if (m_PipelineEntryDebug && m_PipelineEntryDebug->PSO)
-            {
-
-
-                RefCntAutoPtr<IBuffer> pDebugCB;
-                {
-                    
-                    
-                    BufferDesc bd;
-                    bd.Name = "DebugCB";
-                    bd.BindFlags = BIND_UNIFORM_BUFFER;
-                    bd.Usage = USAGE_DYNAMIC;
-                    bd.CPUAccessFlags = CPU_ACCESS_WRITE;
-                    bd.Size = sizeof(DebugCBData);
-                    
-                    
-                    getManager().m_pDevice->CreateBuffer(bd, nullptr, &m_pDebugCB);
-
-                    MapHelper<DebugCBData> map(getManager().m_pImmediateContex, m_pDebugCB, MAP_WRITE, MAP_FLAG_DISCARD);
-
-
-                    m_PipelineEntryDebug->PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "DebugCB")->Set(m_pDebugCB);
-                }
-
-                m_PipelineEntryDebug->PSO->CreateShaderResourceBinding(&m_PipelineEntryDebug->SRB, true);
-
-            }
-
-
-        }
-
         m_pCameraCB.Release();
-        m_pDebugCB.Release();
 
         if (m_PipelineEntry && m_PipelineEntry->PSO)
         {
@@ -221,37 +164,6 @@ namespace rvtx::dil
         attrs.NumVertices = 3;
         attrs.Flags = DRAW_FLAG_VERIFY_ALL;
         ctx->Draw(attrs);
-
-        if(useDebug && m_pDebugCB)
-        {
-            m_PipelineEntryDebug->SRB->GetVariableByName(SHADER_TYPE_PIXEL, "LinearDepthTex")->Set(m_OutputSRV);
-
-            // Cible = backbuffer
-            auto* pRTV = getManager().m_pSwapChain->GetCurrentBackBufferRTV();
-            getManager().m_pSwapChain->GetCurrentBackBufferRTV();
-
-            ITextureView* RTs[] = { pRTV };
-            ctx->SetRenderTargets(1, RTs, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-
-            auto* v = m_PipelineEntryDebug->SRB
-                ->GetVariableByName(SHADER_TYPE_PIXEL, "LinearDepthTex");
-            v->Set(m_OutputSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
-
-            MapHelper<DebugCBData> map(ctx, m_pDebugCB, MAP_WRITE, MAP_FLAG_DISCARD);
-            *map = m_DebugCBData;
-
-
-            // PSO + ressources
-            ctx->SetPipelineState(m_PipelineEntryDebug->PSO);
-            ctx->CommitShaderResources(m_PipelineEntryDebug->SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-            // Full-screen triangle
-            DrawAttribs DA{ 3, DRAW_FLAG_VERIFY_ALL };
-            ctx->Draw(DA);
-        }
-
-
 
 
 
