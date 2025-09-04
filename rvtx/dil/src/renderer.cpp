@@ -27,8 +27,6 @@ VSOut main(uint vid : SV_VertexID)
 }
 )";
 
-// PS “composition” minimal : affiche la cible couleur du GBuffer.
-// Les autres textures sont déjà bindées pour évoluer vers un vrai lighting.
 static const char* kLightingPSLambert = R"(
 Texture2D<uint4>  g_PosNorm : register(t0);
 Texture2D<float4> g_Color   : register(t1);
@@ -101,7 +99,6 @@ namespace rvtx::dil
         uint32_t height)
         : m_Device{ dev }, m_Ctx{ ctx }, m_Swap{ swap }, m_Pipeline{ &pipeline}, m_Width{width}, m_Height{height}
     {
-        // Création du GBuffer
         m_Pipeline->m_pDevice = m_Device;
         m_Pipeline->m_pImmediateContex = m_Ctx;
         m_Pipeline->m_pSwapChain = m_Swap;
@@ -112,11 +109,8 @@ namespace rvtx::dil
        
 
         CreateLightingPipeline();
-        // Création de la RT finale (où on va blitter/postprocess)
-        CreateTargets();
 
-        // PSO pour le postprocess (simple copy fullscreen quad)
-        CreatePostPresentPipeline();
+        CreateTargets();
     }
 
     void DiligentRenderer::Resize(uint32_t width, uint32_t height)
@@ -126,13 +120,10 @@ namespace rvtx::dil
         m_Width = width;
         m_Height = height;
 
-        // (si le swapchain n'est pas déjà resizé ailleurs)
-        // m_Swap->Resize(width, height);
-
         if (m_GBuffer)          m_GBuffer->Resize(m_Device, width, height);
         if (m_postProcessPass)  m_postProcessPass->resize(m_Device, width, height);
 
-        CreateTargets(); // RT finale
+        CreateTargets(); 
     }
 
 
@@ -140,10 +131,6 @@ namespace rvtx::dil
         const rvtx::Scene& scene,
         const std::function<void()>& updateUI)
     {
-        // 1) GBuffer : on remplit les attachments (dont la couleur/albédo)
-
-
-
         m_GBuffer->render(m_Ctx, [&] {
             if (m_Geometry)
                 m_Geometry->render(cam, scene, m_Ctx);
@@ -164,10 +151,9 @@ namespace rvtx::dil
 
 
 
-        // 2) Composition minimale : afficher la RT couleur du GBuffer
         if (!m_LightingPSO) {
             OutputDebugStringA("[Render] Lighting PSO is null (creation failed). Aborting draw.\n");
-            return; // évite l'assert SetPipelineState(nullptr)
+            return;
         }
         if (!m_LightingSRB) {
             m_LightingPSO->CreateShaderResourceBinding(&m_LightingSRB, true);
@@ -215,19 +201,14 @@ namespace rvtx::dil
         m_Ctx->CommitShaderResources(m_LightingSRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
 
-
-
-        // Fullscreen triangle via SV_VertexID
         DrawAttribs da{};
         da.NumVertices = 3;
         da.Flags = DRAW_FLAG_VERIFY_ALL;
         m_Ctx->Draw(da);
 
-        // 3) UI éventuelle...
 
     }
 
-    // ===================== PRIVES =====================
 
     void DiligentRenderer::CreateTargets()
     {
@@ -236,7 +217,6 @@ namespace rvtx::dil
         m_FinalRTV.Release();
         m_FinalTex.Release();
 
-        // Render target finale (RGBA16_FLOAT par ex.)
         TextureDesc texDesc;
         texDesc.Name = "FinalRT";
         texDesc.Type = RESOURCE_DIM_TEX_2D;
@@ -249,13 +229,6 @@ namespace rvtx::dil
         m_Device->CreateTexture(texDesc, nullptr, &m_FinalTex);
         m_FinalRTV = m_FinalTex->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
         m_FinalSRV = m_FinalTex->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    }
-
-    void DiligentRenderer::CreatePostPresentPipeline()
-    {
-        // PSO minimal fullscreen quad pour copier depuis SRV -> RTV
-        // À compléter avec tes shaders (fullscreen VS + copy PS)
-        // Ici je laisse la création vide si tu n’as pas encore les shaders.
     }
 
 
@@ -279,17 +252,15 @@ namespace rvtx::dil
         sci.Desc.UseCombinedTextureSamplers = useCombined;
         sci.Desc.CombinedSamplerSuffix = "Sampler";
 
-        // VS (fullscreen triangle)
         sci.Desc.Name = "Lighting VS";
         sci.Desc.ShaderType = SHADER_TYPE_VERTEX;
         sci.Source = kLightingVS;
         m_Device->CreateShader(sci, &vs);
         if (!vs) { OutputDebugStringA("[Lighting] VS creation failed.\n"); return; }
 
-        // PS (Lambert à partir du GBuffer)
         sci.Desc.Name = "Lighting PS (Lambert)";
         sci.Desc.ShaderType = SHADER_TYPE_PIXEL;
-        sci.Source = kLightingPSLambert; // <- le PS fourni précédemment
+        sci.Source = kLightingPSLambert;
         m_Device->CreateShader(sci, &ps);
         if (!ps) { OutputDebugStringA("[Lighting] PS creation failed.\n"); return; }
 
@@ -301,20 +272,19 @@ namespace rvtx::dil
         const auto& sc = m_Swap->GetDesc();
         psoCI.GraphicsPipeline.NumRenderTargets = 1;
         psoCI.GraphicsPipeline.RTVFormats[0] = sc.ColorBufferFormat;
-        psoCI.GraphicsPipeline.DSVFormat = TEX_FORMAT_UNKNOWN; // pas de depth en composition
-        psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // 3 sommets
+        psoCI.GraphicsPipeline.DSVFormat = TEX_FORMAT_UNKNOWN;
+        psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;
         psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable = False;
-        psoCI.GraphicsPipeline.InputLayout = { nullptr, 0 }; // pas de VB
+        psoCI.GraphicsPipeline.InputLayout = { nullptr, 0 };
 
-        // Variables dynamiques (t0,t1,t2)
+
         const ShaderResourceVariableDesc Vars[] = {
             {SHADER_TYPE_PIXEL, "g_PosNorm", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC},
             {SHADER_TYPE_PIXEL, "g_Color",   SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC},
             {SHADER_TYPE_PIXEL, "g_ID",      SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC},
         };
 
-        // Sampler immuable pour g_Color (les textures UINT sont lues avec Load -> pas de sampler)
         SamplerDesc samp{};
         samp.MinFilter = FILTER_TYPE_LINEAR;
         samp.MagFilter = FILTER_TYPE_LINEAR;
@@ -346,13 +316,6 @@ namespace rvtx::dil
         if (!m_LightingSRB) { OutputDebugStringA("[Lighting] CreateShaderResourceBinding failed.\n"); return; }
     }
 
-
-
-
-
-
-
-
     void DiligentRenderer::DrawFullscreenFromSRV(ITextureView* srv)
     {
         if (!srv || !m_PostPSO)
@@ -372,28 +335,21 @@ namespace rvtx::dil
         m_Ctx->SetRenderTargets(1, RTVs, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
         DrawAttribs drawAttrs;
-        drawAttrs.NumVertices = 3; // fullscreen triangle
+        drawAttrs.NumVertices = 3;
         drawAttrs.Flags = DRAW_FLAG_VERIFY_ALL;
         m_Ctx->Draw(drawAttrs);
 
-        // Maintenant, blit vers backbuffer
         auto* backRTV = m_Swap->GetCurrentBackBufferRTV();
         m_Ctx->SetRenderTargets(1, &backRTV, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        // Ici tu peux soit redessiner un fullscreen quad, soit faire un CopyTexture
-        // Pour simplifier :
-
         CopyTextureAttribs copyAttrs;
 
-        // Source
         copyAttrs.pSrcTexture = m_FinalTex;
         copyAttrs.SrcTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
 
-        // Destination
         copyAttrs.pDstTexture = m_Swap->GetCurrentBackBufferRTV()->GetTexture();
         copyAttrs.DstTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
 
-        // Options
         copyAttrs.SrcSlice = 0;
         copyAttrs.DstSlice = 0;
         copyAttrs.SrcMipLevel = 0;

@@ -27,7 +27,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/random.hpp>
 
-#include <glm/gtc/type_ptr.hpp> // glm::value_ptr
+#include <glm/gtc/type_ptr.hpp>
 #include "BasicMath.hpp"  
 
 using namespace Diligent;
@@ -57,7 +57,7 @@ namespace rvtx::dil
 
             // formats de la cible (R16F comme ton GL_R16F) et pas de depth
             GP.NumRenderTargets = 1;
-            GP.RTVFormats[0] = static_cast<TEXTURE_FORMAT>(m_OutputFormat);   // <- ta RT linéarisée
+            GP.RTVFormats[0] = static_cast<TEXTURE_FORMAT>(m_OutputFormat);
             GP.DSVFormat = TEX_FORMAT_UNKNOWN;
             GP.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             GP.RasterizerDesc.CullMode = CULL_MODE_NONE;
@@ -164,8 +164,6 @@ namespace rvtx::dil
     {
         using namespace Diligent;
 
-        // Format de sortie (par défaut R32F dans le .hpp, change si besoin)
-
         TextureDesc desc{};
         desc.Name = "LinearDepth.Target";
         desc.Type = RESOURCE_DIM_TEX_2D;
@@ -177,7 +175,6 @@ namespace rvtx::dil
         desc.Usage = USAGE_DEFAULT;
         desc.BindFlags = BIND_RENDER_TARGET | BIND_SHADER_RESOURCE;
 
-        // Libère l’ancienne (si existait) puis recrée
         m_Output.Release();
         m_OutputRTV.Release();
         m_OutputSRV.Release();
@@ -206,7 +203,6 @@ namespace rvtx::dil
         ITextureView* RTVs[] = { m_OutputRTV };
         ctx->SetRenderTargets(1, RTVs, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        // MAJ CameraCB
         MapHelper<CameraCBData> map(ctx, m_pCameraCB, MAP_WRITE, MAP_FLAG_DISCARD);
         map->uClipInfo[0] = camera.zNear * camera.zFar;
         map->uClipInfo[1] = camera.zNear - camera.zFar;
@@ -221,9 +217,6 @@ namespace rvtx::dil
         ctx->SetPipelineState(m_PipelineEntry->PSO);
         ctx->CommitShaderResources(m_PipelineEntry->SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-
-
-        // Dessin fullscreen
         DrawAttribs attrs{};
         attrs.NumVertices = 3;
         attrs.Flags = DRAW_FLAG_VERIFY_ALL;
@@ -460,41 +453,35 @@ namespace rvtx::dil
         db.CPUAccessFlags = CPU_ACCESS_WRITE;
         pDevice->CreateBuffer(db, nullptr, &m_CBDebug);
 
-
-
-        // Binder les CBs statiquement sur le PSO (PIXEL)
         if (auto* var = m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SSAOParams"))
         {
             var->Set(m_CB);
         }
-        //m_PSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "SSAOParams")->Set(m_CB);
         if (auto* var = m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SSAOKernel"))
         {
             var->Set(m_CBKernel);
         }
             
-        //m_PSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "DebugSize")->Set(m_CBDebug);
     }
 
 
     inline Diligent::float4x4 ToFloat4x4RowMajor(const glm::mat4& g)
     {
-        Diligent::float4x4 m;               // m.m[4][4] est dispo dans BasicMath.hpp
-        const float* a = glm::value_ptr(g); // a[c*4 + r]
+        Diligent::float4x4 m;
+        const float* a = glm::value_ptr(g);
         for (int r = 0; r < 4; ++r)
             for (int c = 0; c < 4; ++c)
-                m.m[r][c] = a[c * 4 + r];   // transpose-copy
+                m.m[r][c] = a[c * 4 + r];
         return m;
     }
 
-    // Variante si ton cbuffer n’est PAS row_major (peu probable ici) :
     inline Diligent::float4x4 ToFloat4x4ColumnMajor(const glm::mat4& g)
     {
         Diligent::float4x4 m;
         const float* a = glm::value_ptr(g);
         for (int r = 0; r < 4; ++r)
             for (int c = 0; c < 4; ++c)
-                m.m[r][c] = a[r * 4 + c];   // copie directe
+                m.m[r][c] = a[r * 4 + c];
         return m;
     }
 
@@ -504,7 +491,6 @@ namespace rvtx::dil
         Diligent::IDeviceContext* ctx = getManager().m_pImmediateContex;
         Diligent::RefCntAutoPtr<Diligent::ISwapChain> swap = getManager().m_pSwapChain;
 
-        // MAJ CBs (OK)
         {
             MapHelper<SSAOParamsCB> map(ctx, m_CB, MAP_WRITE, MAP_FLAG_DISCARD);
             map->uProjMatrix = ToFloat4x4ColumnMajor(camera.getProjectionMatrix());
@@ -522,20 +508,13 @@ namespace rvtx::dil
             std::memcpy(map, m_AOKernel.data(), sizeof(float) * 3 * m_KernelSize);
         }
 
-        // Viewport pour la RT SSAO
         Diligent::Viewport vp{ 0,0,float(m_width),float(m_height),0,1 };
         ctx->SetViewports(1, &vp, m_width, m_height);
 
-
-
-
-
-        // RT SSAO + PSO AO
         ITextureView* rtvs[] = { m_OutputRTV };
         ctx->SetRenderTargets(1, rtvs, nullptr, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         ctx->SetPipelineState(m_PSO);
 
-        // Bind SRV correctes
         if (m_SRB)
         {
             if (m_ViewPosNormalSRV)
@@ -611,7 +590,7 @@ namespace rvtx::dil
                 m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gViewPosNormal")->Set(m_ViewPosNormalSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             }
                 
-            if (m_LinearDepthSRV) // SRV de la passe LinearizeDepth !
+            if (m_LinearDepthSRV)
                 m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gLinearDepth")->Set(m_LinearDepthSRV, SET_SHADER_RESOURCE_FLAG_ALLOW_OVERWRITE);
             if (m_NoiseSRV)
                 if (auto* v = m_SRB->GetVariableByName(SHADER_TYPE_PIXEL, "gNoise"))
@@ -629,8 +608,6 @@ namespace rvtx::dil
                 OutputDebugStringA(s.c_str());
             }
 
-
-        // triangle plein écran
         Diligent::DrawAttribs da{ 3, Diligent::DRAW_FLAG_VERIFY_ALL };
         ctx->Draw(da);
     }
@@ -654,7 +631,6 @@ namespace rvtx::dil
 
         for (uint32_t i = 0; i < m_KernelSize; i++)
         {
-            // échantillon sur l’hémisphère orientée Z+
             glm::vec3 sample = glm::sphericalRand(1.0f);
             sample.z = std::abs(sample.z);
 

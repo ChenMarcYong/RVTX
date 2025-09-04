@@ -52,7 +52,6 @@ namespace rvtx::dil
         PSOStateCreateInfo.PSODesc.Name = "Sphere Impostor Pipeline";
         PSOStateCreateInfo.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
 
-        // --- Sorties du GBuffer ---
         PSOStateCreateInfo.GraphicsPipeline.NumRenderTargets = 3;
         PSOStateCreateInfo.GraphicsPipeline.RTVFormats[0] = TEX_FORMAT_RGBA32_UINT;   // positions+normales packées
         PSOStateCreateInfo.GraphicsPipeline.RTVFormats[1] = TEX_FORMAT_RGBA16_FLOAT;  // couleur/matériaux
@@ -61,7 +60,6 @@ namespace rvtx::dil
 
         PSOStateCreateInfo.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_POINT_LIST;
 
-        // Rasterizer / Depth
         PSOStateCreateInfo.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;
         PSOStateCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = True;
         PSOStateCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = True;
@@ -77,12 +75,10 @@ namespace rvtx::dil
         CBDesc.BindFlags = BIND_UNIFORM_BUFFER;
         CBDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
         m_pDevice->CreateBuffer(CBDesc, nullptr, &m_pSphereSettingsCB);
-        // Associer le constant buffer aux shaders
         m_pPSO_Sphere->GetStaticVariableByName(SHADER_TYPE_VERTEX, "SphereSettings")->Set(m_pSphereSettingsCB);
         m_pPSO_Sphere->GetStaticVariableByName(SHADER_TYPE_GEOMETRY, "SphereSettings")->Set(m_pSphereSettingsCB);
         m_pPSO_Sphere->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SphereSettings")->Set(m_pSphereSettingsCB);
 
-        // Créer le Shader Resource Binding
         m_pPSO_Sphere->CreateShaderResourceBinding(&m_pSRB_Sphere, true);
     }
 
@@ -159,7 +155,6 @@ namespace rvtx::dil
 
         // Activer le pipeline
         m_pImmediateContext->SetPipelineState(pipelineSphereEntry->PSO);
-        //m_pImmediateContext->SetPipelineState(m_pPSO_Sphere);
 
         // Binder les buffers dynamiques
         auto varSpheres = pipelineSphereEntry->SRB->GetVariableByName(SHADER_TYPE_VERTEX, "spheres");
@@ -219,8 +214,6 @@ namespace rvtx::dil
             //const glm::mat4 S = glm::scale(glm::mat4(1.f), xf.scale);
             const glm::mat4 M = T * R;
 
-            // --- Mettre à jour le constant buffer POUR CETTE ENTITÉ
-            // IMPORTANT: DISCARd à chaque update (une zone mémoire fraîche par draw)
             {
                 MapHelper<SphereSettings> cb(ctx, m_pSphereSettingsCB, MAP_WRITE, MAP_FLAG_DISCARD);
                 cb->uMVMatrix = ToDiligent_ColumnMajor(V * M); // VS attend des positions en espace vue
@@ -241,7 +234,6 @@ namespace rvtx::dil
 
             ctx->CommitShaderResources(pipelineSphereEntry->SRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-            // --- Un point par sphère, SV_VertexID indexe dans les StructuredBuffers
             DrawAttribs da{};
             da.NumVertices = sh.size;
             da.Flags = DRAW_FLAG_VERIFY_ALL;

@@ -45,17 +45,14 @@ namespace rvtx::dil
 
         ~DiligentRenderer() = default;
 
-        // --- comme ton Renderer OpenGL ---
         inline void enableUI(bool enable) { m_EnableUI = enable; }
         inline void setGeometry(std::unique_ptr<rvtx::dil::GeometryHandler>&& g) { m_Geometry = std::move(g); }
 
-        // Expose la RT finale
         inline Diligent::ITextureView* GetFinalRTV() const { return m_FinalRTV; }
         inline Diligent::ITextureView* GetFinalSRV() const { return m_FinalSRV; }
 
         void Resize(uint32_t width, uint32_t height);
 
-        // Render 
         void render(const rvtx::Camera& cam,
             const rvtx::Scene& scene,
             const std::function<void()>& updateUI = [] {});
@@ -66,7 +63,6 @@ namespace rvtx::dil
 
     private:
         void CreateTargets();
-        void CreatePostPresentPipeline();
         void DrawFullscreenFromSRV(Diligent::ITextureView* srv);
         void CreateLightingPipeline();
 
@@ -81,7 +77,7 @@ namespace rvtx::dil
 
         bool m_EnableUI = true;
 
-        // --- Nouveau : GBuffer  ---
+        // ---  GBuffer  ---
         std::unique_ptr<rvtx::dil::GBufferPass> m_GBuffer;
         std::unique_ptr<rvtx::dil::PostProcessPassDiligent> m_postProcessPass;
         Diligent::RefCntAutoPtr<Diligent::IPipelineState>         m_LightingPSO;

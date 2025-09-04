@@ -30,8 +30,6 @@ namespace rvtx::dil
         return { f(sRGB.r), f(sRGB.g), f(sRGB.b) };
         };
 
-
-    // Fonction interne factorisée pour éviter de répéter le code dans getMolecule, getNonResident, getSystem
     static rvtx::dil::BallAndStickHolder buildSphereHolder(
         Diligent::IRenderDevice* device,
         const rvtx::Molecule& molecule,
@@ -54,11 +52,10 @@ namespace rvtx::dil
         for (std::size_t i = startIndex; i < endIndex; ++i)
         {
             const auto& atom = molecule.atoms[i];
-            const auto& pd = molecule.data[i];           // (x,y,z,r)
+            const auto& pd = molecule.data[i];
             const auto& residue = molecule.residues[atom.residueId];
             const auto& chain = molecule.chains[residue.chainId];
 
-            // Couleur par chaîne (ou ta logique)
             const glm::vec3 col = getChainColor(chain);
 
             const glm::vec3 col_srgb = getChainColor(chain);
@@ -74,13 +71,7 @@ namespace rvtx::dil
             ids.push_back(moleculeIds ? (moleculeIds->atomIds.start + static_cast<uint32_t>(i)) : 0u);
         }
 
-        //if (!spheres.empty()) {
-        //    auto c = spheres[0].color;
-        //    OutputDebugStringA((fmt::format("[buildSphereHolder] first color = {},{},{}\n", c.x, c.y, c.z)).c_str());
-        //}
 
-
-        // Buffer structuré des sphères (SRV)
         holder.buffer = rvtx::dil::Buffer::Typed<Sphere>(
             device,
             rvtx::ConstSpan<Sphere>{spheres.data(), spheres.size()},
@@ -89,7 +80,6 @@ namespace rvtx::dil
             /*structured*/ true
         );
 
-        // Buffer structuré des IDs (SRV)
         holder.idsBuffer = rvtx::dil::Buffer::Typed<uint32_t>(
             device,
             rvtx::ConstSpan<uint32_t>{ids.data(), ids.size()},
