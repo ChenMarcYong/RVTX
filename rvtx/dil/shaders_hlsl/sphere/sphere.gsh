@@ -40,8 +40,7 @@ void main(point VS_OUT vsIn[1], inout TriangleStream<GS_OUT> triStream)
     float3 center = vsIn[0].vViewSpherePos;
     float3 U = vsIn[0].vImpU;
     float3 V = vsIn[0].vImpV;
-
-    // Coins du quad
+    
     float3 quadPos[4] =
     {
         center - U - V,

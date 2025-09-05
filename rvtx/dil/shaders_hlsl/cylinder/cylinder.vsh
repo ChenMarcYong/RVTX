@@ -6,29 +6,24 @@
 
 struct Sphere
 {
-	float3 position; // 12
-	float radius; // 16
-	float3 color; // 28
-	float visibility; // 32  (taille totale: 32 octets)
+	float3 position;
+	float radius;
+	float3 color;
+	float visibility;
 };
 
-// Remplace le UBO std140 "CylinderSettings" (binding = 0)
 cbuffer CylinderSettings : register(b0)
 {
 	float4x4 uMVMatrix;
 	float4x4 uProjMatrix;
 	float uCylRadius;
 	uint uIsPerspective; 
-	float2 _padding; // padding pour alignement 16 octets
+	float2 _padding;
 };
-
-// Buffers équivalents aux SSBO/UBO GLSL
-// NOTE: adaptez les slots t# selon votre pipeline.
 StructuredBuffer<Sphere> spheres : register(t0);
 StructuredBuffer<uint> sphereIndices : register(t1);
 StructuredBuffer<uint> ids : register(t2);
 
-// Sorties du VS
 struct VSOut
 {
 	float4 pos : SV_Position;
@@ -40,8 +35,7 @@ struct VSOut
 VSOut main(uint vertexID : SV_VertexID)
 {
 	VSOut o;
-
-    // Equiv: Sphere sphere = spheres[sphereIndices[gl_VertexID]];
+	
 	Sphere sphere = spheres[sphereIndices[vertexID]];
 	
 	o.vVertexColor = sphere.color;

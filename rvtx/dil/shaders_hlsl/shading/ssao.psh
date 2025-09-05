@@ -1,9 +1,9 @@
-Texture2D<uint4> gViewPosNormal : register(t0); // packHalf2x16 lu en uint4
-Texture2D<float3> gNoise : register(t1); // bruit (xy, z=0)
-Texture2D<float> gLinearDepth : register(t2); // profondeur linéaire
+Texture2D<uint4> gViewPosNormal : register(t0);
+Texture2D<float3> gNoise : register(t1);
+Texture2D<float> gLinearDepth : register(t2);
 
-SamplerState gNoiseSampler : register(s0); // WRAP + POINT
-SamplerState gDepthSampler : register(s1); // CLAMP + POINT
+SamplerState gNoiseSampler : register(s0);
+SamplerState gDepthSampler : register(s1);
 
 cbuffer SSAOParams : register(b0)
 {
@@ -41,8 +41,7 @@ float main(PSIn IN) : SV_Target
     const float BIAS = 0.025f;
 
     int2 texPos = int2(IN.SVPos.xy);
-
-    // Unpack G-Buffer
+    
     uint4 vpnu = gViewPosNormal.Load(int3(texPos, 0));
     float2 vp_xy = UnpackHalf2x16(vpnu.x);
     float2 tmp = UnpackHalf2x16(vpnu.y);

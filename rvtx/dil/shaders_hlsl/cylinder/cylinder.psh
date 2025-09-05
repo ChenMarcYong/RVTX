@@ -17,17 +17,15 @@ struct PSIn
     uint vId : TEXCOORD2;
 };
 
-// --- Variante A : avec MRT pour écrire l'ID de picking ---
 struct PSOut
 {
     float4 color : SV_Target0;
-    uint id : SV_Target1; // nécessite un RT R32_UINT
+    uint id : SV_Target1;
 };
 
 [earlydepthstencil]
 PSOut main(PSIn i)
 {
-    // Masquage comme dans le GLSL: si visibilité == 0 -> discard
     if (i.vVertexVis == 0u)
     {
         discard;
@@ -38,13 +36,3 @@ PSOut main(PSIn i)
     o.id = i.vId;
     return o;
 }
-
-/* ------------------------------------------------------
-   Variante B (simple) : si tu n’utilises PAS de RT d’ID
-
-float4 main(PSIn i) : SV_Target
-{
-    if (i.vVertexVis == 0u) { discard; }
-    return float4(i.vVertexColor, 1.0f);
-}
-------------------------------------------------------- */
